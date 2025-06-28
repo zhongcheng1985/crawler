@@ -1,0 +1,29 @@
+E:\crawler\agent>start /b python agent.py & timeout /t 2 /nobreak & python demo.py
+
+等待 0 秒，按 CTRL+C 退出 ...INFO:__main__:正在启动
+INFO:     ('127.0.0.1', 59827) - "WebSocket /ws/ext" [accepted]
+INFO:__main__:websocket accept:127.0.0.1 59827
+INFO:     connection openrtup complete.       
+INFO:__main__:api go:{'session_id': 'd844aabe'}000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59816 - "POST /api/start HTTP/1.1" 200 OK
+=>{}
+<={'session_id': 'd844aabe'}
+INFO:__main__:reload button ready
+INFO:__main__:api go:{'session_id': 'd844aabe', 'url': 'http://server.joyingtech.cn/demo.html', 'title': '', 'elements': {'element_id': '0_173_1920_1030', 'name': '', 'control_type': 'DocumentControl', 'children': [{'element_id': '10_183_1910_1020', 'name': '', 'control_type': 'GroupControl', 'children': [{'element_id': '10_185_222_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '227_185_440_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '445_185_485_213', 'name': '=>', 'control_type': 'ButtonControl'}, {'element_id': '490_185_703_213', 'name': '', 'control_type': 'EditControl'}]}]}, 'responses': None}
+INFO:     127.0.0.1:59828 - "POST /api/go HTTP/1.1" 200 OK
+=>{"session_id": "d844aabe", "url": "http://server.joyingtech.cn/demo.html"}
+<={'session_id': 'd844aabe', 'url': 'http://server.joyingtech.cn/demo.html', 'title': '', 'elements': {'element_id': '0_173_1920_1030', 'name': '', 'control_type': 'DocumentControl', 'children': [{'element_id': '10_183_1910_1020', 'name': '', 'control_type': 'GroupControl', 'children': [{'element_id': '10_185_222_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '227_185_440_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '445_185_485_213', 'name': '=>', 'control_type': 'ButtonControl'}, {'element_id': '490_185_703_213', 'name': '', 'control_type': 'EditControl'}]}]}, 'responses': None}
+INFO:__main__:api input:{'session_id': 'd844aabe', 'element_id': '10_185_222_213', 'keys': ''}
+INFO:     127.0.0.1:59838 - "POST /api/input HTTP/1.1" 200 OK
+=>{"session_id": "d844aabe", "element_id": "10_185_222_213", "keys": "abcdef{tab}123456"}
+<={'session_id': 'd844aabe', 'element_id': '10_185_222_213', 'keys': ''}
+INFO:__main__:api click:{'session_id': 'd844aabe', 'element_id': '445_185_485_213', 'text': '=>'}
+INFO:     127.0.0.1:59839 - "POST /api/click HTTP/1.1" 200 OK
+=>{"session_id": "d844aabe", "element_id": "445_185_485_213"}
+<={'session_id': 'd844aabe', 'element_id': '445_185_485_213', 'text': '=>'}
+INFO:__main__:websocket close:127.0.0.1 59827
+INFO:     connection closed
+INFO:__main__:api destroy:{'session_id': 'd844aabe'}
+INFO:     127.0.0.1:59841 - "POST /api/destroy HTTP/1.1" 200 OK
+=>{"session_id": "d844aabe"}
+<=None

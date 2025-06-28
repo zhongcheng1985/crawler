@@ -1,0 +1,30 @@
+
+{
+    "manifest_version": 3,
+    "name": "UIA Extension",
+    "version": "1.0",
+    "description": "This is a UIA Chrome extension!",
+    "action": {
+      "default_popup": "popup.html"
+    },
+    "content_scripts": [
+        {
+          "matches": ["<all_urls>"],
+          "js": ["content.js"]
+        }
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "permissions": [
+        "tabs",
+        "cookies",
+        "webNavigation",
+        "webRequest",
+        "debugger",
+        "scripting"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ]
+  }

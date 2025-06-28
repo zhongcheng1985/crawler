@@ -1,0 +1,240 @@
+console.log('Background service worker running!');
+
+// ==========  ========== common ==========  ==========
+function generateId() {
+  return crypto.randomUUID();
+}
+
+// ==========  ========== WebSocket ==========  ==========
+let webSocket;
+// ----------
+function connectWebwebSocket() {
+  webSocket = new WebSocket("ws://127.0.0.1:8000/ws/ext");
+  // onopen
+  webSocket.onopen = () => {
+    console.log("WebwebSocket connected");
+  };
+  // onmessage
+  webSocket.onmessage = (event) => {
+    console.log("<=", event.data);
+    // {id,command,source,params,data,error,reply}
+    const req = JSON.parse(event.data);
+    const origId = req.id;
+    const command = req.command;
+    if (!origId || !command) return;
+    //
+    if ("Request.Network.getResponseBody" === command) {
+      if (!req.params) return;
+      const tabId = req.params.tabId;
+      const requestId = req.params.requestId;
+      if (!tabId || !requestId) return;
+
+      chrome.debugger.sendCommand(
+        { tabId: tabId },
+        "Network.getResponseBody",
+        { requestId: requestId },
+        (response) => {
+          const rsp = { "id": generateId(), "reply": origId, "command": "Response.Network.getResponseBody" };
+          if (chrome.runtime.lastError) {
+            rsp.error = chrome.runtime.lastError.message;
+          } else {
+            rsp.data = response.body;
+          }
+          webSocket.send(JSON.stringify(rsp));
+          console.log("=>", rsp);
+        }
+      );
+    }
+    //
+    if ("Request.queryTabs" === command) {
+      chrome.tabs.query(
+        { currentWindow: true },
+        (tabs) => {
+          const rsp = { "id": generateId(), "reply": origId, "command": "Response.queryTabs" };
+          rsp.data = tabs;
+          webSocket.send(JSON.stringify(rsp));
+          console.log("=>", rsp);
+        }
+      );
+    }
+    //
+    if ("Request.toUrl" === command) {
+      if (!req.params) return;
+      const tabId = req.params.tabId;
+      const url = req.params.url;
+      if (!tabId || !url) return;
+
+      chrome.tabs.update(
+        tabId,
+        { url: url },
+        (results) => {
+          if (chrome.runtime.lastError) {
+            console.log("=#", chrome.runtime.lastError);
+          } else {
+            console.log("=#", results);
+          }
+        }
+      );
+    }
+    //
+    if ("Request.executeScript" === command) {
+      if (!req.params) return;
+      const tabId = req.params.tabId;
+      const script = req.params.script;
+      if (!tabId || !script) return;
+
+      chrome.scripting.executeScript(
+        {
+          target: { tabId: tabId },
+          args: [script],
+          func: (script) => {
+            eval(script);
+            return document.title;
+          }
+        },
+        (results) => {
+          if (chrome.runtime.lastError) {
+            console.log("=#", chrome.runtime.lastError);
+          } else {
+            console.log("=#", results);
+          }
+        }
+      );
+    }
+  };
+
+  webSocket.onclose = () => {
+    console.log("WebwebSocket disconnected");
+  };
+
+  webSocket.onerror = (error) => {
+    console.log("WebwebSocket error:", error);
+    setTimeout(connectWebwebSocket, 100);
+  };
+}
+// ==========  ========== connect websocket ==========  ==========
+connectWebwebSocket();
+
+// ==========  ========== debugger ==========  ==========
+// ----------
+function handleDebuggerEvent(source, method, params) {
+  // 用户输入URL、点击链接或调用 location.href 跳转
+  if ("Page.frameNavigated" === method) {
+    const rsp = { "id": generateId(), "command": "Event.Page.frameNavigated", "source": source, "params": params };
+    webSocket.send(JSON.stringify(rsp));
+    console.log("=>", rsp);
+  }
+  // 请求发起
+  if ("Network.requestWillBeSent" === method) {
+    // interface RequestWillBeSentParams {
+    //   requestId: string;
+    //   loaderId: string;
+    //   documentURL: string;
+    //   request: Request;
+    //   timestamp: number;
+    //   wallTime?: number;
+    //   initiator: Initiator;
+    //   redirectResponse?: Response;
+    //   type?: ResourceType;
+    //   frameId?: string;
+    //   hasUserGesture?: boolean;
+    // }
+    const rsp = { "id": generateId(), "command": "Event.Network.requestWillBeSent", "source": source, "params": params };
+    webSocket.send(JSON.stringify(rsp));
+    console.log("=>", rsp);
+  }
+  // 浏览器接收到 HTTP 响应头（此时响应体可能还未开始传输）
+  if ("Network.responseReceived" === method) {
+    // interface ResponseReceivedParams {
+    //   requestId: string;
+    //   loaderId?: string;
+    //   timestamp: number;
+    //   type: ResourceType;
+    //   response: Response;
+    //   frameId?: string;
+    //   hasExtraInfo?: boolean;
+    // }
+    const rsp = { "id": generateId(), "command": "Event.Network.responseReceived", "source": source, "params": params };
+    webSocket.send(JSON.stringify(rsp));
+    console.log("=>", rsp);
+  }
+  // ********** 浏览器边下载边解析 HTML,遇到 <script>, <link>, <img> 等标签时立即发起子资源请求 **********
+  // 响应体完全加载完成（包括所有数据包接收完毕）
+  if ("Network.loadingFinished" === method) {
+    // interface LoadingFinishedParams {
+    //   requestId: string;
+    //   timestamp: number;
+    //   encodedDataLength: number;  // 压缩后数据大小
+    //   shouldReportCorbBlocking?: boolean;
+    // }
+    const rsp = { "id": generateId(), "command": "Event.Network.loadingFinished", "source": source, "params": params };
+    webSocket.send(JSON.stringify(rsp));
+    console.log("=>", rsp);
+  }
+  // DOM加载完成。阻塞渲染的CSS和同步JS必须已完成加载和执行，非阻塞资源（如async脚本、图片）可能仍在加载
+  if ("Page.domContentEventFired" === method) {
+    const rsp = { "id": generateId(), "command": "Event.Page.domContentEventFired", "source": source, "params": params };
+    webSocket.send(JSON.stringify(rsp));
+    console.log("=>", rsp);
+  }
+  // 页面完全加载。所有同步资源必须加载完成，异步资源（如defer脚本、懒加载图片）可能仍在加载
+  if ("Page.loadEventFired" === method) {
+    const rsp = { "id": generateId(), "command": "Event.Page.loadEventFired", "source": source, "params": params };
+    webSocket.send(JSON.stringify(rsp));
+    console.log("=>", rsp);
+  }
+}
+// ----------
+async function attachDebugger(tabId) {
+  try {
+    // 附加调试器（协议版本 "1.3"）
+    await chrome.debugger.attach({ tabId: tabId }, "1.3");
+    console.log(`已附加调试器到标签页: ${tabId}`);
+    // 启用网络请求监听
+    await chrome.debugger.sendCommand({ tabId: tabId }, "Network.enable");
+    await chrome.debugger.sendCommand({ tabId: tabId }, "Page.enable");
+    // 监听调试器事件（如网络请求）
+    chrome.debugger.onEvent.addListener(handleDebuggerEvent);
+    console.log(`已启用网络监听到标签页: ${tabId}`);
+  } catch (error) {
+    console.log("附加调试器失败:", error);
+  }
+}
+
+// ==========  ========== tabs event ==========  ==========
+const debuggedTabs = new Set()
+// ----------
+chrome.tabs.onCreated.addListener((tab) => {
+    const rsp = { "id": generateId(), "command": "Event.tabs.onCreated", "source": {"tabId":tab.id} };
+    webSocket.send(JSON.stringify(rsp));
+    console.log("=>", rsp);
+});
+// ----------
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'loading') {
+    // console.log("标签页开始加载:", tab.url);
+  }
+  if (changeInfo.status === 'complete') {
+    // console.log("标签页加载完成:", tab.url);
+  }
+  if (!debuggedTabs.has(tabId) && (tab.url.startsWith("http://") || tab.url.startsWith("https://"))) {
+    attachDebugger(tabId);
+    debuggedTabs.add(tabId)
+  }
+});
+// ----------
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    const rsp = { "id": generateId(), "command": "Event.tabs.onActivated", "source": {"tabId":activeInfo.tabId} };
+    webSocket.send(JSON.stringify(rsp));
+    console.log("=>", rsp);
+});
+// ----------
+chrome.tabs.onRemoved.addListener((tabId,removeInfo) => {
+  const rsp = { "id": generateId(), "command": "Event.tabs.onRemoved", "source": {"tabId":tabId} };
+  webSocket.send(JSON.stringify(rsp));
+  console.log("=>", rsp);
+  if (debuggedTabs.has(tabId)) {
+    // chrome.debugger.detach({ tabId: tabId });
+    debuggedTabs.delete(tabId);
+  }
+});
