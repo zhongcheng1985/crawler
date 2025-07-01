@@ -1,14 +1,17 @@
 import logging
-logging.basicConfig()
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 # NOTSET:0,DEBUG:10,INFO:20,WARNING:30,ERROR:40,CRITICAL:50
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 # ==========  ========== data ==========  ==========
 sessionS_processO:dict = {}          # session_id -> {process}
 sessionS_websocketO:dict = {}        # session_id -> {websocket}
 replyS_textS:dict = {}               # reply_id -> text
-sessionS_tabN_requestLS:dict = {}      # session_id -> tab_id -> [text]
 sessionS_tabN_responseLS:dict = {}     # session_id -> tab_id -> [text]
 sessionS_tabN_loadedLS:dict = {}       # session_id -> tab_id -> [text]
 
@@ -62,7 +65,7 @@ async def fun_chrome_start(session_id:str):
     user_path = fun_user_path(session_id)
     #
     chrome_path = r'D:\Program Files\Chrome\chrome.exe'
-    ext_path = r'E:\crawler\uia_extension'
+    ext_path = r'E:\crawler\code\uia_extension'
     #
     import subprocess
     chrome_process = subprocess.Popen(
@@ -78,7 +81,9 @@ async def fun_chrome_start(session_id:str):
             f'--load-extension={ext_path}',
             # r'--proxy-server='http://127.0.0.1:8888'',
             # r'--remote-debugging-port=9222',
+            # r'--auto-open-devtools-for-tabs',
             # url,
+            # r'http://127.0.0.1:8000/empty.html'
         ]
     )
     #
@@ -147,6 +152,8 @@ async def fun_session_go(session_id:str,url:str) -> str:
     #
     chrome_window.SendKeys(r'{Ctrl}L')
     chrome_window.SendKeys(url)
+    #import asyncio
+    #await asyncio.sleep(0.200)
     chrome_window.SendKeys(r'{Enter}')
     #
     loaded_cfm=False
@@ -190,17 +197,17 @@ async def fun_http_data(session_id:str,tab_id:int):
         import json
         for text in sessionS_tabN_responseLS[session_id][tab_id]:
             data=json.loads(text)
-            headers=data[r'params'][r'response'][r'headers']
+            headers=data[r'params'][r'responseHeaders']
             dataO={
+                r'tab_id':data[r'params'][r'tabId'],
                 r'request_id':data[r'params'][r'requestId'],
-                r'url': data[r'params'][r'response'][r'url'],
+                r'url': data[r'params'][r'url'],
+                r'status': data[r'params'][r'statusCode'],
             }
-            if(r'Content-Type' in headers):
-                dataO[r'content_type']=headers[r'Content-Type']
-            if(r'Content-Length' in headers):
-                dataO[r'content_length']=headers[r'Content-Length']
-            if(r'status' in headers):
-                dataO[r'status']=headers[r'status']
+            if(r'content-type' in headers):
+                dataO[r'content_type']=headers[r'content-type']
+            if(r'content-length' in headers):
+                dataO[r'content_length']=headers[r'content-length']
             dataLO.append(dataO)
     except Exception as e:
         logger.info("get http data error")
@@ -327,8 +334,6 @@ async def fun_session_destroy(session_id:str) -> str:
         except Exception as e:
             pass
     #
-    if(session_id in sessionS_tabN_requestLS):
-        del sessionS_tabN_requestLS[session_id]
     if(session_id in sessionS_tabN_responseLS):
         del sessionS_tabN_responseLS[session_id]
     if(session_id in sessionS_tabN_loadedLS):
@@ -342,7 +347,7 @@ async def fun_session_destroy(session_id:str) -> str:
 
 # ==========  ========== web server ==========  ==========
 from fastapi import FastAPI,BackgroundTasks
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse,Response
 from typing import Dict, Any
 app = FastAPI()
 
@@ -735,13 +740,8 @@ async def ws_ext(websocket: WebSocket):
             if(data.get(r'reply',None)):
                 replyS_textS[data[r'reply']]=text
             #
-            if(r'Event.Page.frameNavigated'==data.get(r'command',None)):
-                tab_id=data[r'source'][r'tabId']
-                #
-                tabN_requestLS=sessionS_tabN_requestLS.get(session_id,{})
-                tabN_requestLS.update({tab_id:[]})
-                sessionS_tabN_requestLS.update({session_id:tabN_requestLS})
-                logger.info(f'session_tab_request cleared:{session_id} {tab_id}')
+            if(r'Event.webNavigation.onBeforeNavigate'==data.get(r'command',None)):
+                tab_id=data[r'params'][r'tabId']
                 #
                 tabN_responseLS=sessionS_tabN_responseLS.get(session_id,{})
                 tabN_responseLS.update({tab_id:[]})
@@ -749,18 +749,9 @@ async def ws_ext(websocket: WebSocket):
                 logger.info(f'session_tab_response cleared:{session_id} {tab_id}')
                 #
                 tabN_loadedLS=sessionS_tabN_loadedLS.get(session_id,{})
-                tabN_loadedLS.update({data['source']['tabId']:[]})
+                tabN_loadedLS.update({tab_id:[]})
                 sessionS_tabN_loadedLS.update({session_id:tabN_loadedLS})
                 logger.info(f'session_tab_loaded cleared:{session_id} {tab_id}')
-            #
-            if(r'Event.Network.requestWillBeSent'==data.get(r'command',None)):
-                tab_id=data[r'source'][r'tabId']
-                tabN_requestLS=sessionS_tabN_requestLS.get(session_id,{})
-                requestLS=tabN_requestLS.get(tab_id,[])
-                requestLS.append(text)
-                tabN_requestLS.update({tab_id:requestLS})
-                sessionS_tabN_requestLS.update({session_id:tabN_requestLS})
-                logger.info(f'session_tab_request append:{session_id} {tab_id}')
             #
             if(r'Event.Network.responseReceived'==data.get(r'command',None)):
                 tab_id=data[r'source'][r'tabId']
@@ -771,8 +762,17 @@ async def ws_ext(websocket: WebSocket):
                 sessionS_tabN_responseLS.update({session_id:tabN_responseLS})
                 logger.info(f'session_tab_response append:{session_id} {tab_id}')
             #
-            if(r'Event.Page.loadEventFired'==data.get(r'command',None)):
-                tab_id=data[r'source'][r'tabId']
+            if(r'Event.webRequest.onResponseStarted'==data.get(r'command',None)):
+                tab_id=data[r'params'][r'tabId']
+                tabN_responseLS=sessionS_tabN_responseLS.get(session_id,{})
+                responseLS=tabN_responseLS.get(tab_id,[])
+                responseLS.append(text)
+                tabN_responseLS.update({tab_id:responseLS})
+                sessionS_tabN_responseLS.update({session_id:tabN_responseLS})
+                logger.info(f'session_tab_response append:{session_id} {tab_id}')
+            #
+            if(r'Event.webNavigation.onCompleted'==data.get(r'command',None)):
+                tab_id=data[r'params'][r'tabId']
                 tabN_loadedLS=sessionS_tabN_loadedLS.get(session_id,{})
                 loadedLS=tabN_loadedLS.get(tab_id,[])
                 loadedLS.append(text)
@@ -790,6 +790,56 @@ async def ws_ext(websocket: WebSocket):
             del sessionS_websocketO[key]
     #
     return
+# ----------  ---------- empty ----------  ----------
+empty_html = '''
+<!DOCTYPE html>
+<html>
+    <body>
+    </body>
+</html>
+'''
+@app.get('/empty.html')
+def emptyHtml():
+    return HTMLResponse(empty_html)
+
+# ----------  ---------- demo ----------  ----------
+demo_html = '''
+<!DOCTYPE html>
+<html>
+	<head><title>demo</title></head>
+    <link rel="stylesheet" href="demo.css"></link>
+	<script src="demo.js"></script>
+    <body>
+            <input id="a" />
+            <input id="b" />
+            <input id="c" type="button" value="=>" onclick="document.getElementById('d').value=document.getElementById('a').value+document.getElementById('b').value" />
+            <input id="d" value="" />
+    </body>
+</html>
+'''
+@app.get('/demo.html')
+def demoHtml():
+    return HTMLResponse(demo_html)
+
+demo_js = '''
+function demo(){
+    console.log("hello")
+}
+demo()
+'''
+@app.get('/demo.js')
+def demoJs():
+    return Response(content=demo_js, media_type="application/javascript")
+
+demo_css = '''
+body{
+    width:100%;
+    height:100%;
+}
+'''
+@app.get('/demo.css')
+def demoCss():
+    return Response(content=demo_css, media_type="text/css")
 
 # ==========  ========== uvicorn ==========  ==========
 def uvicorn_run():
@@ -804,12 +854,6 @@ def uvicorn_run():
 
 # ==========  ========== main ==========  ==========
 if __name__ == '__main__':
-    #
-    import threading
-    uvicorn_thread = threading.Thread(target=uvicorn_run, daemon=True)
-    uvicorn_thread.start()
-    
     logger.info(r'正在启动')
-    import sys
-    sys.stdin.readline()
+    uvicorn_run()
     logger.info(r'正在关闭')

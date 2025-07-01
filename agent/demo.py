@@ -45,7 +45,7 @@ if __name__ == '__main__':
     # ----------  ---------- 2. go ----------  ----------
     tip("2. go")
     url = 'http://127.0.0.1:8000/api/go'
-    data = {"session_id":session_id,"url":"http://server.joyingtech.cn/demo.html"}
+    data = {"session_id":session_id,"url":"http://127.0.0.1:8000/demo.html"}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')
     req.add_header('Content-Type', 'application/json')
