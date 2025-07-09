@@ -12,7 +12,7 @@ This project is a comprehensive web automation and crawling system that combines
 
 ```
 ┌─────────────────┐    WebSocket    ┌─────────────────┐
-│   Chrome        │◄──────────────►│   Agent         │
+│   Chrome        │◄──────────────► │   Agent         │
 │   Extension     │                 │   Service       │
 │   (UIA)         │                 │   (Port 8000)   │
 └─────────────────┘                 └─────────────────┘
