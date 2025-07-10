@@ -2,8 +2,21 @@
 
 ## Base URL
 ```
-http://localhost:8000
+http://localhost:8080 (via Dispatcher)
+http://localhost:8000 (direct to Agent)
 ```
+
+## Architecture Overview
+
+The system now uses a dispatcher-based architecture:
+
+```
+Client → Dispatcher (Port 8080) → Agent Service (Port 8000) → Chrome Browser
+```
+
+- **Dispatcher**: Load balancer that distributes requests across multiple agent instances
+- **Agent Service**: Core automation engine with Chrome browser management
+- **Dashboard**: Monitoring and management interface
 
 ## Authentication
 Currently, the API does not require authentication. All endpoints are accessible without authentication tokens.
@@ -43,7 +56,7 @@ All API responses follow this format:
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8000/api/start \
+curl -X POST http://localhost:8080/api/start \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
@@ -52,6 +65,7 @@ curl -X POST http://localhost:8000/api/start \
 - If `session_id` is not provided, a new session will be created
 - If `session_id` is provided and exists, the session will be resumed
 - Each session creates an isolated Chrome instance with its own user data directory
+- Requests are routed through the dispatcher to available agent instances
 
 ### 2. Navigate to URL
 
@@ -101,7 +115,7 @@ curl -X POST http://localhost:8000/api/start \
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8000/api/go \
+curl -X POST http://localhost:8080/api/go \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "abc12345",
@@ -113,6 +127,7 @@ curl -X POST http://localhost:8000/api/go \
 - The system waits for the page to fully load before returning elements
 - Elements are discovered using Windows UIA (UI Automation)
 - Network responses are captured and returned for analysis
+- Requests are routed to the agent instance that owns the session
 
 ### 3. Click Element
 
@@ -139,7 +154,7 @@ curl -X POST http://localhost:8000/api/go \
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8000/api/click \
+curl -X POST http://localhost:8080/api/click \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "abc12345",
@@ -151,6 +166,7 @@ curl -X POST http://localhost:8000/api/click \
 - Element ID must be obtained from a previous `/api/go` call
 - Uses Windows UIA for reliable element interaction
 - Returns the element name for confirmation
+- Requests are routed to the agent instance that owns the session
 
 ### 4. Input Text/Keys
 
@@ -178,7 +194,7 @@ curl -X POST http://localhost:8000/api/click \
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8000/api/input \
+curl -X POST http://localhost:8080/api/input \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "abc12345",
@@ -205,6 +221,7 @@ curl -X POST http://localhost:8000/api/input \
 - Supports complex keyboard sequences
 - Can combine text and special keys
 - Uses Windows UIA for reliable input simulation
+- Requests are routed to the agent instance that owns the session
 
 ### 5. Download Response Body
 
@@ -233,7 +250,7 @@ curl -X POST http://localhost:8000/api/input \
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8000/api/download \
+curl -X POST http://localhost:8080/api/download \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "abc12345",
@@ -246,6 +263,7 @@ curl -X POST http://localhost:8000/api/download \
 - `tab_id` and `request_id` are obtained from network responses in `/api/go`
 - Response body is base64 encoded
 - Only available for requests that have completed loading
+- Requests are routed to the agent instance that owns the session
 
 ### 6. Destroy Session
 
@@ -269,7 +287,7 @@ curl -X POST http://localhost:8000/api/download \
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8000/api/destroy \
+curl -X POST http://localhost:8080/api/destroy \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "abc12345"
@@ -281,6 +299,62 @@ curl -X POST http://localhost:8000/api/destroy \
 - Cleans up user data directory
 - Removes session from memory
 - Should be called to prevent resource leaks
+- Requests are routed to the agent instance that owns the session
+
+## Dispatcher API Endpoints
+
+### 1. Health Check
+
+**Endpoint:** `GET /health`
+
+**Description:** Check dispatcher health and status.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "active_clients": 2,
+  "active_sessions": 5,
+  "total_requests": 150
+}
+```
+
+### 2. Status Information
+
+**Endpoint:** `GET /status`
+
+**Description:** Get detailed dispatcher status information.
+
+**Response:**
+```json
+{
+  "clients": [
+    {
+      "ip": "192.168.1.100",
+      "port": 8010,
+      "connect_time": "2024-01-15T10:30:00",
+      "status": "connected"
+    }
+  ],
+  "sessions": [
+    {
+      "session_id": "abc12345",
+      "client_ip": "192.168.1.100",
+      "init_time": "2024-01-15T10:30:00",
+      "status": "active"
+    }
+  ],
+  "requests": [
+    {
+      "method": "POST",
+      "url": "/api/go",
+      "session_id": "abc12345",
+      "request_time": "2024-01-15T10:30:00",
+      "status_code": 200
+    }
+  ]
+}
+```
 
 ## WebSocket API
 
@@ -375,7 +449,8 @@ curl -X POST http://localhost:8000/api/destroy \
 
 ### Base URL
 ```
-http://localhost:8001 (or configured port)
+http://localhost:8001 (Backend API)
+http://localhost:3000 (Frontend UI)
 ```
 
 ### 1. Crawler Grid
@@ -523,6 +598,7 @@ http://localhost:8001 (or configured port)
 - `400` - Bad Request (invalid parameters)
 - `404` - Not Found (session or element not found)
 - `500` - Internal Server Error
+- `503` - Service Unavailable (no available agents)
 
 ### Common Error Responses
 
@@ -550,12 +626,21 @@ http://localhost:8001 (or configured port)
 }
 ```
 
+**No Available Agents:**
+```json
+{
+  "error": "No client available",
+  "status": 503
+}
+```
+
 ## Rate Limiting
 
 Currently, no rate limiting is implemented. However, it's recommended to:
 - Limit concurrent sessions per client
 - Implement appropriate delays between requests
 - Monitor resource usage
+- Use dispatcher for load distribution
 
 ## Best Practices
 
@@ -563,6 +648,7 @@ Currently, no rate limiting is implemented. However, it's recommended to:
 1. Always call `/api/destroy` when done with a session
 2. Reuse sessions when possible to avoid overhead
 3. Monitor session count to prevent resource exhaustion
+4. Use dispatcher for load balancing across multiple agents
 
 ### Element Interaction
 1. Wait for page load before interacting with elements
@@ -573,11 +659,13 @@ Currently, no rate limiting is implemented. However, it's recommended to:
 1. Always check for error responses
 2. Implement retry logic for transient failures
 3. Log errors for debugging
+4. Handle dispatcher routing failures
 
 ### Performance
 1. Use appropriate page load wait times
 2. Minimize unnecessary navigation
 3. Clean up sessions promptly
+4. Monitor dispatcher health and agent availability
 
 ## Examples
 
@@ -587,12 +675,12 @@ Currently, no rate limiting is implemented. However, it's recommended to:
 import requests
 import json
 
-# 1. Start session
-response = requests.post('http://localhost:8000/api/start', json={})
+# 1. Start session through dispatcher
+response = requests.post('http://localhost:8080/api/start', json={})
 session_id = response.json()['session_id']
 
 # 2. Navigate to page
-response = requests.post('http://localhost:8000/api/go', json={
+response = requests.post('http://localhost:8080/api/go', json={
     'session_id': session_id,
     'url': 'https://example.com'
 })
@@ -600,21 +688,21 @@ elements = response.json()['elements']
 
 # 3. Find and click a button
 button_element = next(e for e in elements if 'Submit' in e['name'])
-response = requests.post('http://localhost:8000/api/click', json={
+response = requests.post('http://localhost:8080/api/click', json={
     'session_id': session_id,
     'element_id': button_element['element_id']
 })
 
 # 4. Input text into a field
 input_element = next(e for e in elements if e['control_type'] == 'Edit')
-response = requests.post('http://localhost:8000/api/input', json={
+response = requests.post('http://localhost:8080/api/input', json={
     'session_id': session_id,
     'element_id': input_element['element_id'],
     'keys': 'Hello World{enter}'
 })
 
 # 5. Clean up
-requests.post('http://localhost:8000/api/destroy', json={
+requests.post('http://localhost:8080/api/destroy', json={
     'session_id': session_id
 })
 ```
@@ -622,8 +710,8 @@ requests.post('http://localhost:8000/api/destroy', json={
 ### JavaScript Example
 
 ```javascript
-// Start session
-const startResponse = await fetch('http://localhost:8000/api/start', {
+// Start session through dispatcher
+const startResponse = await fetch('http://localhost:8080/api/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({})
@@ -631,7 +719,7 @@ const startResponse = await fetch('http://localhost:8000/api/start', {
 const { session_id } = await startResponse.json();
 
 // Navigate to page
-const goResponse = await fetch('http://localhost:8000/api/go', {
+const goResponse = await fetch('http://localhost:8080/api/go', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -643,7 +731,7 @@ const { elements } = await goResponse.json();
 
 // Click element
 const buttonElement = elements.find(e => e.name.includes('Submit'));
-await fetch('http://localhost:8000/api/click', {
+await fetch('http://localhost:8080/api/click', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -653,9 +741,25 @@ await fetch('http://localhost:8000/api/click', {
 });
 
 // Clean up
-await fetch('http://localhost:8000/api/destroy', {
+await fetch('http://localhost:8080/api/destroy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_id })
 });
+```
+
+### Dispatcher Health Check
+
+```python
+import requests
+
+# Check dispatcher health
+response = requests.get('http://localhost:8080/health')
+if response.status_code == 200:
+    health_data = response.json()
+    print(f"Dispatcher Status: {health_data['status']}")
+    print(f"Active Clients: {health_data['active_clients']}")
+    print(f"Active Sessions: {health_data['active_sessions']}")
+else:
+    print("Dispatcher is not responding")
 ``` 

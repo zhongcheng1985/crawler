@@ -2,11 +2,12 @@
 
 ## Overview
 
-This project is a comprehensive web automation and crawling system that combines Chrome browser automation with UIA (UI Automation) for advanced web interaction capabilities. The system consists of three main components:
+This project is a comprehensive web automation and crawling system that combines Chrome browser automation with UIA (UI Automation) for advanced web interaction capabilities. The system consists of four main components:
 
 1. **Chrome Extension** (`uia_extension/`) - Monitors browser events and network traffic
 2. **Agent Service** (`agent/`) - Core automation engine with HTTP API and WebSocket communication
-3. **Dashboard** (`dashboard/`) - Web-based monitoring and management interface
+3. **Dispatcher** (`dispatcher/`) - Load balancer and session distribution system
+4. **Dashboard** (`dashboard/` + `dashboard-ui/`) - Web-based monitoring and management interface
 
 ## Architecture
 
@@ -20,8 +21,15 @@ This project is a comprehensive web automation and crawling system that combines
                                               │ HTTP API
                                               ▼
                                     ┌─────────────────┐
+                                    │   Dispatcher    │
+                                    │   (Port 8080)   │
+                                    └─────────────────┘
+                                              │
+                                              │ HTTP API
+                                              ▼
+                                    ┌─────────────────┐
                                     │   Dashboard     │
-                                    │   (MySQL)       │
+                                    │   (MySQL + UI)  │
                                     └─────────────────┘
 ```
 
@@ -86,14 +94,56 @@ This project is a comprehensive web automation and crawling system that combines
 - **Event Processing**: Handles browser events from extension
 - **Response Caching**: Stores network responses for later retrieval
 
-### 3. Dashboard (`dashboard/`)
+### 3. Dispatcher (`dispatcher/`)
 
-**Purpose**: Web-based monitoring and management interface for the crawling system.
+**Purpose**: Load balancer and session distribution system that manages multiple crawler instances.
 
 **Key Files**:
+- `DispatcherServer.py` - Main dispatcher server that distributes requests
+- `DispatcherClient.py` - Client component that connects to dispatcher
+- `create_table.sql` - Database schema for dispatcher tracking
+
+**Core Functionality**:
+
+#### Load Balancing
+- **Client Distribution**: Distributes HTTP requests across available crawler instances
+- **Session Routing**: Routes sessions to appropriate crawler based on availability
+- **Health Monitoring**: Tracks client health and availability
+
+#### Session Management
+- **Session Tracking**: Maintains session-to-client mapping
+- **Request Logging**: Logs all requests for monitoring and debugging
+- **Failover Support**: Handles client disconnections and reconnections
+
+#### Architecture
+- **HTTP Proxy**: Acts as HTTP proxy between clients and crawler instances
+- **WebSocket Support**: Maintains WebSocket connections for real-time communication
+- **Connection Pooling**: Manages multiple concurrent connections
+
+### 4. Dashboard (`dashboard/` + `dashboard-ui/`)
+
+**Purpose**: Modern web-based monitoring and management interface for the crawling system.
+
+**Backend Files** (`dashboard/`):
 - `dashboard.py` - FastAPI application with dashboard endpoints
 - `create_table.sql` - Database schema
 - `test_data.sql` - Sample data for testing
+
+**Frontend Files** (`dashboard-ui/`):
+- `src/` - Vue.js 3 application with modern UI
+- `package.json` - Frontend dependencies and build configuration
+- `vite.config.js` - Build tool configuration
+
+**Frontend Features**:
+- **Modern UI**: Built with Vue.js 3, Ant Design Vue, and Vite
+- **Real-time Updates**: WebSocket-based real-time data updates
+- **Responsive Design**: Mobile-friendly responsive interface
+- **Component Architecture**: Modular Vue.js components
+
+**Backend Features**:
+- **RESTful API**: Clean API endpoints for frontend consumption
+- **Database Integration**: MySQL database for data persistence
+- **Authentication**: User authentication and session management
 
 **Database Schema**:
 
@@ -147,6 +197,12 @@ destroy_session(session_id)
 - **Keyboard Simulation**: Supports complex keyboard input sequences
 - **Click Simulation**: Native mouse click simulation
 
+### Dispatcher Architecture
+- **Load Balancing**: Distributes requests across multiple crawler instances
+- **Session Persistence**: Maintains session state across requests
+- **Health Monitoring**: Tracks crawler instance health and availability
+- **Failover**: Automatic failover to healthy instances
+
 ## Configuration
 
 ### Environment Variables
@@ -160,12 +216,18 @@ destroy_session(session_id)
 - `DB_PASSWORD`: MySQL password
 - `DB_NAME`: Database name (default: dashboard)
 
+### Dispatcher Configuration
+- `HTTP_PORT`: Dispatcher HTTP port (default: 8080)
+- `CLIENT_PORT`: Dispatcher client port (default: 8010)
+- `DISPATCHER_HOST`: Dispatcher server host (default: 127.0.0.1)
+
 ## Security Considerations
 
 1. **Session Isolation**: Each session uses isolated Chrome instances
 2. **User Data Cleanup**: Automatic cleanup of session data
 3. **Network Monitoring**: All network traffic is logged and monitored
 4. **Access Control**: API endpoints require valid session IDs
+5. **Load Balancer Security**: Dispatcher provides additional security layer
 
 ## Performance Features
 
@@ -173,6 +235,8 @@ destroy_session(session_id)
 2. **Response Caching**: Network responses cached for quick access
 3. **Session Reuse**: Ability to resume existing sessions
 4. **Parallel Processing**: Support for multiple concurrent sessions
+5. **Load Balancing**: Distributes load across multiple crawler instances
+6. **Modern Frontend**: Fast, responsive UI with real-time updates
 
 ## Monitoring and Logging
 
@@ -180,6 +244,7 @@ destroy_session(session_id)
 2. **Session Tracking**: Complete session lifecycle monitoring
 3. **Performance Metrics**: Response times and status codes tracked
 4. **Error Handling**: Comprehensive error logging and reporting
+5. **Dispatcher Logging**: Load balancer request and response logging
 
 ## Use Cases
 
@@ -188,6 +253,7 @@ destroy_session(session_id)
 3. **Testing**: Automated UI testing for web applications
 4. **Monitoring**: Real-time website monitoring and alerting
 5. **Data Collection**: Large-scale data collection from multiple sources
+6. **Load Testing**: Distributed load testing across multiple instances
 
 ## Dependencies
 
@@ -198,10 +264,23 @@ destroy_session(session_id)
 - asyncio
 - subprocess
 
-### Dashboard
+### Dashboard Backend
 - FastAPI
 - mysql-connector-python
 - pydantic
+
+### Dashboard Frontend
+- Vue.js 3
+- Ant Design Vue
+- Vite
+- Axios
+- Pinia (State Management)
+- Vue Router
+
+### Dispatcher
+- asyncio
+- logging
+- datetime
 
 ### Chrome Extension
 - Chrome Extensions API
@@ -211,8 +290,10 @@ destroy_session(session_id)
 ## Deployment
 
 1. **Agent Service**: Run on port 8000 with WebSocket support
-2. **Dashboard**: Run on separate port with MySQL database
-3. **Chrome Extension**: Load into Chrome browser instances
-4. **Database**: MySQL server with provided schema
+2. **Dispatcher**: Run on port 8080 for load balancing
+3. **Dashboard Backend**: Run on separate port with MySQL database
+4. **Dashboard Frontend**: Build and serve static files
+5. **Chrome Extension**: Load into Chrome browser instances
+6. **Database**: MySQL server with provided schema
 
-This system provides a powerful foundation for web automation, scraping, and monitoring with enterprise-grade features for session management, monitoring, and scalability. 
+This system provides a powerful foundation for web automation, scraping, and monitoring with enterprise-grade features for session management, monitoring, scalability, and modern user interface. 
