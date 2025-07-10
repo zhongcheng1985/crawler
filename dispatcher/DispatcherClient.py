@@ -7,12 +7,11 @@ DISPATCHER_HOST = '127.0.0.1'
 DISPATCHER_PORT = 8010
 HTTP_HOST = '127.0.0.1'
 HTTP_PORT = 80
-BUFFER_SIZE = 65536
 
 async def pipe(reader, writer):
     try:
         while True:
-            data = await reader.read(BUFFER_SIZE)
+            data = await reader.read(1024)
             if not data:
                 break
             writer.write(data)
@@ -63,7 +62,7 @@ def drain_request(reader):
     async def _drain():
         try:
             while True:
-                data = await reader.read(BUFFER_SIZE)
+                data = await reader.read(1024)
                 if not data:
                     break
         except Exception:

@@ -9,7 +9,6 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s %(me
 
 HTTP_PORT = 8080
 CLIENT_PORT = 8010
-BUFFER_SIZE = 65536
 
 @dataclass
 class ClientInfo:
@@ -45,21 +44,58 @@ class RequestInfo:
 requests = []  # List of RequestInfo
 requests_lock = asyncio.Lock()
 
-async def pipe(reader, writer):
+async def http_client_pipe(reader, writer):
+    BUFFER_SIZE=1024
+    SPLITER=b"\r\n"
     try:
+        buffer = b""
         while True:
             data = await reader.read(BUFFER_SIZE)
             if not data:
                 break
+            buffer += data
+            while SPLITER in buffer:
+                line, buffer = buffer.split(SPLITER, 1)
+                print(f"<= {line}{SPLITER}")
+            if len(data)<BUFFER_SIZE:
+                print(f"<= {buffer}")
+                buffer=b""
             writer.write(data)
             await writer.drain()
-    except Exception:
+    except Exception as e:
         pass
     finally:
         try:
             writer.close()
             await writer.wait_closed()
-        except Exception:
+        except Exception as e:
+            pass
+
+async def client_http_pipe(reader, writer):
+    BUFFER_SIZE=1024
+    SPLITER=b"\r\n"
+    try:
+        buffer = b""
+        while True:
+            data = await reader.read(BUFFER_SIZE)
+            if not data:
+                break
+            buffer += data
+            while SPLITER in buffer:
+                line, buffer = buffer.split(SPLITER, 1)
+                print(f"=> {line}{SPLITER}")
+            if len(data)<BUFFER_SIZE:
+                print(f"=> {buffer}")
+                buffer=b""
+            writer.write(data)
+            await writer.drain()
+    except Exception as e:
+        pass
+    finally:
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception as e:
             pass
 
 async def handle_client(reader, writer):
@@ -158,15 +194,15 @@ async def handle_http(reader, writer):
         d_reader, d_writer = client.reader, client.writer
         d_writer.write(header_buffer)
         await d_writer.drain()
-        req_to_client = asyncio.create_task(pipe(reader, d_writer))
-        resp_to_http = asyncio.create_task(pipe(d_reader, writer))
+        req_to_client = asyncio.create_task(http_client_pipe(reader, d_writer))
+        resp_to_http = asyncio.create_task(client_http_pipe(d_reader, writer))
         done, pending = await asyncio.wait([req_to_client, resp_to_http], return_when=asyncio.FIRST_COMPLETED)
         for task in pending:
             task.cancel()
         try:
             d_writer.close()
             await d_writer.wait_closed()
-        except Exception:
+        except Exception as e:
             pass
         # On session end, record destroy_time
         if x_session_id:
@@ -190,7 +226,7 @@ async def _send_and_close(writer, response_bytes):
     try:
         writer.write(response_bytes)
         await writer.drain()
-    except Exception:
+    except Exception as e:
         pass
     writer.close()
     await writer.wait_closed()
