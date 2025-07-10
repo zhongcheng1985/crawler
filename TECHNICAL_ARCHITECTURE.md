@@ -14,6 +14,19 @@
                                     │ HTTP API
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Dispatcher Layer                                │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                    Load Balancer (Port 8080)                       │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────┐     │    │
+│  │  │   Request   │  │   Session   │  │   Client    │  │   Log   │     │    │
+│  │  │   Router    │  │  Manager    │  │  Manager    │  │ Handler │     │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────┘     │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ HTTP API
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
 │                              Agent Service Layer                            │
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
 │  │                    FastAPI Application (Port 8000)                  │    │
@@ -70,44 +83,81 @@
 ### 1. Session Initialization Flow
 
 ```
-Client Request → Agent Service → Chrome Process Creation → Extension Loading → WebSocket Connection → Session Ready
-     │              │                    │                      │                    │
-     ▼              ▼                    ▼                      ▼                    ▼
-HTTP POST        Session ID         Chrome Instance        Extension         WebSocket
-/api/start      Generation         with UIA Ext          Auto-load         Connection
+Client Request → Dispatcher → Agent Service → Chrome Process Creation → Extension Loading → WebSocket Connection → Session Ready
+     │              │              │                    │                      │                    │
+     ▼              ▼              ▼                    ▼                      ▼                    ▼
+HTTP POST        Route to       Session ID         Chrome Instance        Extension         WebSocket
+/api/start      Available      Generation         with UIA Ext          Auto-load         Connection
+                Agent
 ```
 
 ### 2. Navigation Flow
 
 ```
-Client Request → Agent Service → Chrome Window → URL Navigation → Page Load → UIA Scan → Response
-     │              │              │              │              │           │
-     ▼              ▼              ▼              ▼              ▼           ▼
-HTTP POST        Find Window    Send Keys      Wait for       Element      Return
-/api/go         (UIA)         (Ctrl+L+URL)   Load Event     Discovery    Elements
+Client Request → Dispatcher → Agent Service → Chrome Window → URL Navigation → Page Load → UIA Scan → Response
+     │              │              │              │              │              │           │
+     ▼              ▼              ▼              ▼              ▼              ▼           ▼
+HTTP POST        Route to       Find Window    Send Keys      Wait for       Element      Return
+/api/go         Available      (UIA)         (Ctrl+L+URL)   Load Event     Discovery    Elements
+                Agent
 ```
 
 ### 3. Element Interaction Flow
 
 ```
-Client Request → Agent Service → Element Search → UIA Action → Response
-     │              │              │              │
-     ▼              ▼              ▼              ▼
-HTTP POST        Find Element   Click/Input    Return
-/api/click      by ID          (UIA)          Result
+Client Request → Dispatcher → Agent Service → Element Search → UIA Action → Response
+     │              │              │              │              │
+     ▼              ▼              ▼              ▼              ▼
+HTTP POST        Route to       Find Element   Click/Input    Return
+/api/click      Available      by ID          (UIA)          Result
+                Agent
 ```
 
 ### 4. Network Monitoring Flow
 
 ```
-Chrome Extension → WebSocket → Agent Service → Response Storage → Client Request → Data Return
-      │              │              │              │              │
-      ▼              ▼              ▼              ▼              ▼
-Debugger Event   JSON Message   Event Handler   Cache Store    HTTP GET
-Network/Page     to Agent       Process Event   Response       /api/download
+Chrome Extension → WebSocket → Agent Service → Response Storage → Dispatcher → Client Request → Data Return
+      │              │              │              │              │              │
+      ▼              ▼              ▼              ▼              ▼              ▼
+Debugger Event   JSON Message   Event Handler   Cache Store    Route Request  HTTP GET
+Network/Page     to Agent       Process Event   Response       to Agent       /api/download
 ```
 
 ## Component Interaction Details
+
+### Dispatcher Internal Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Dispatcher Service                              │
+│                                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
+│  │   HTTP Proxy    │  │   Session       │  │   Client        │              │
+│  │   Handler       │  │   Manager       │  │   Manager       │              │
+│  │                 │  │                 │  │                 │              │
+│  │ • Request       │  │ • sessionS_     │  │ • clients       │              │
+│  │   Routing       │  │   mapping       │  │   queue         │              │
+│  │ • Header        │  │ • session       │  │ • health        │              │
+│  │   Parsing       │  │   tracking      │  │   monitoring    │              │
+│  │ • Response      │  │ • request       │  │ • failover      │              │
+│  │   Forwarding    │  │   logging       │  │   handling      │              │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
+│           │                     │                     │                     │
+│           └─────────────────────┼─────────────────────┘                     │
+│                                 │                                           │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
+│  │   Load          │  │   Health        │  │   Logging       │              │
+│  │   Balancer      │  │   Monitor       │  │   System        │              │
+│  │                 │  │                 │  │                 │              │
+│  │ • Round-robin   │  │ • Client        │  │ • Request       │              │
+│  │   distribution  │  │   status        │  │   logging       │              │
+│  │ • Session       │  │   tracking      │  │ • Response      │              │
+│  │   affinity      │  │ • Connection    │  │   logging       │              │
+│  │ • Failover      │  │   monitoring    │  │ • Error         │              │
+│  │   logic         │  │ • Auto-recovery │  │   tracking      │              │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ### Agent Service Internal Architecture
 
@@ -139,6 +189,40 @@ Network/Page     to Agent       Process Event   Response       /api/download
 │  │   Management    │  │   Simulation    │  │   Tracking      │              │
 │  │ • Cleanup       │  │ • Input         │  │ • Download      │              │
 │  │                 │  │   Simulation    │  │   Handler       │              │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Dashboard Frontend Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Dashboard Frontend                                │
+│                                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
+│  │   Vue Router    │  │   Pinia Store   │  │   API Client    │              │
+│  │                 │  │                 │  │                 │              │
+│  │ • Route         │  │ • State         │  │ • HTTP Client   │              │
+│  │   Management    │  │   Management    │  │ • Request       │              │
+│  │ • Navigation    │  │ • Session       │  │   Interceptors  │              │
+│  │   Guards        │  │   Storage       │  │ • Response      │              │
+│  │ • Lazy          │  │ • Real-time     │  │   Handling      │              │
+│  │   Loading       │  │   Updates       │  │ • Error         │              │
+│  │                 │  │                 │  │   Handling      │              │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
+│           │                     │                     │                     │
+│           └─────────────────────┼─────────────────────┘                     │
+│                                 │                                           │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
+│  │   Views         │  │   Components    │  │   Utils         │              │
+│  │                 │  │                 │  │                 │              │
+│  │ • Crawler       │  │ • Common        │  │ • Date          │              │
+│  │   Management    │  │   Components    │  │   Formatting    │              │
+│  │ • Session       │  │ • Charts        │  │ • Validation    │              │
+│  │   Monitoring    │  │ • Tables        │  │ • API           │              │
+│  │ • Log           │  │ • Forms         │  │   Helpers       │              │
+│  │   Analysis      │  │ • Modals        │  │ • Constants     │              │
+│  │                 │  │                 │  │                 │              │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -180,7 +264,41 @@ Network/Page     to Agent       Process Event   Response       /api/download
 
 ## State Management
 
-### Session State Variables
+### Dispatcher State Variables
+
+```python
+# Global state management in DispatcherServer.py
+clients: deque = deque()                    # Active client connections
+sessions: dict = {}                        # session_id -> SessionInfo
+requests: list = []                        # List of RequestInfo objects
+
+@dataclass
+class ClientInfo:
+    reader: Any
+    writer: Any
+    ip: str
+    port: int
+    connect_time: datetime.datetime
+    disconnect_time: Optional[datetime.datetime] = None
+
+@dataclass
+class SessionInfo:
+    session: str
+    client: ClientInfo
+    init_time: datetime.datetime
+    destroy_time: Optional[datetime.datetime] = None
+
+@dataclass
+class RequestInfo:
+    session: SessionInfo
+    method: str
+    url: str
+    request_time: datetime.datetime
+    response_time: Optional[datetime.datetime] = None
+    status_code: Optional[int] = None
+```
+
+### Agent Service State Variables
 
 ```python
 # Global state management in agent.py
@@ -191,7 +309,50 @@ sessionS_tabN_responseLS:dict = {}     # session_id -> tab_id -> [text]
 sessionS_tabN_loadedLS:dict = {}       # session_id -> tab_id -> [text]
 ```
 
-### State Transitions
+### Dashboard Frontend State
+
+```javascript
+// Pinia store structure
+export const useMainStore = defineStore('main', {
+  state: () => ({
+    crawlers: [],
+    sessions: [],
+    logs: [],
+    loading: false,
+    error: null
+  }),
+  
+  actions: {
+    async fetchCrawlers() { /* ... */ },
+    async fetchSessions() { /* ... */ },
+    async fetchLogs() { /* ... */ }
+  }
+})
+```
+
+## State Transitions
+
+### Dispatcher State Transitions
+
+```
+Client Lifecycle:
+┌─────────────┐    connect    ┌─────────────┐    disconnect    ┌─────────────┐
+│   Idle      │ ────────────► │  Connected  │ ───────────────► │ Disconnected│
+│             │               │             │                  │             │
+└─────────────┘               └─────────────┘                  └─────────────┘
+       ▲                              │                              │
+       │                              │                              │
+       └──────────────────────────────┼──────────────────────────────┘
+                                      │
+                                      ▼
+                               ┌─────────────┐
+                               │  Available  │
+                               │   for Load  │
+                               │  Balancing  │
+                               └─────────────┘
+```
+
+### Session State Transitions
 
 ```
 Session Lifecycle:
@@ -214,27 +375,47 @@ Session Lifecycle:
 
 ### Error Types and Handling
 
-1. **Chrome Process Errors**
+1. **Dispatcher Errors**
+   - Client connection failures
+   - Load balancing failures
+   - Session routing errors
+   - Health check failures
+
+2. **Chrome Process Errors**
    - Process creation failure
    - Extension loading failure
    - WebSocket connection failure
 
-2. **UIA Interaction Errors**
+3. **UIA Interaction Errors**
    - Element not found
    - Element not clickable
    - Input validation errors
 
-3. **Network Errors**
+4. **Network Errors**
    - WebSocket disconnection
    - HTTP request failures
    - Response parsing errors
 
-4. **Session Errors**
+5. **Session Errors**
    - Invalid session ID
    - Session timeout
    - Resource cleanup failures
 
 ### Error Recovery Mechanisms
+
+```python
+# Example error recovery in DispatcherServer.py
+async def handle_client(reader, writer):
+    try:
+        # Handle client connection
+        await writer.wait_closed()
+    except Exception as e:
+        logging.error(f"Client error: {e}")
+    finally:
+        # Cleanup client resources
+        disconnect_time = datetime.datetime.now()
+        client_info.disconnect_time = disconnect_time
+```
 
 ```python
 # Example error recovery in agent.py
@@ -265,16 +446,20 @@ async def fun_chrome_start(session_id:str):
 - **Session Isolation**: Each session uses separate Chrome user data directory
 - **Response Caching**: Network responses cached with cleanup mechanisms
 - **Process Cleanup**: Automatic termination of Chrome processes on session end
+- **Client Pool Management**: Efficient client connection pooling in dispatcher
 
 ### Concurrency Handling
 - **Async/Await**: Full async support for non-blocking operations
 - **WebSocket Management**: Concurrent WebSocket connections per session
 - **Database Pooling**: Connection pooling for database operations
+- **Load Balancing**: Distributed request handling across multiple agents
 
 ### Scalability Features
 - **Session Reuse**: Ability to resume existing sessions
 - **Parallel Processing**: Support for multiple concurrent sessions
 - **Resource Monitoring**: Real-time resource usage tracking
+- **Horizontal Scaling**: Multiple agent instances with dispatcher load balancing
+- **Frontend Optimization**: Vue.js 3 with Vite for fast development and builds
 
 ## Security Architecture
 
@@ -282,13 +467,16 @@ async def fun_chrome_start(session_id:str):
 - **Session Isolation**: Complete isolation between sessions
 - **User Data Cleanup**: Automatic cleanup of session data
 - **Access Control**: Session ID validation for all operations
+- **Load Balancer Security**: Additional security layer through dispatcher
 
 ### Network Security
 - **WebSocket Encryption**: Secure WebSocket connections
 - **Request Validation**: Input validation and sanitization
 - **Error Masking**: Sensitive error information not exposed
+- **HTTP Proxy Security**: Secure proxy handling in dispatcher
 
 ### Data Security
 - **Database Encryption**: MySQL data encryption
 - **Log Sanitization**: Sensitive data removed from logs
-- **Access Logging**: Complete audit trail of all operations 
+- **Access Logging**: Complete audit trail of all operations
+- **Frontend Security**: Vue.js security best practices 
