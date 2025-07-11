@@ -20,7 +20,12 @@
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'server'">
-          {{ getServerDisplay(record) }}
+          <a-tooltip placement="top" :overlay-inner-style="{ whiteSpace: 'pre-line' }">
+            <template #title>
+              <div v-html="getServerTooltip(record)"></div>
+            </template>
+            <span>{{ getServerDisplay(record) }}</span>
+          </a-tooltip>
         </template>
         <template v-else-if="column.key === 'status_code'">
           <a-tag :color="getStatusCodeColor(record.status_code)">
@@ -44,7 +49,7 @@ import { useRoute } from 'vue-router'
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
   { title: 'Server', key: 'server' },
-  { title: 'Session', dataIndex: 'session_id', key: 'session' },
+  { title: 'Session', dataIndex: 'session_id', key: 'session_id' },
   { title: 'API', dataIndex: 'api', key: 'api' },
   { title: 'Request Time', dataIndex: 'request_time', key: 'request_time' },
   { title: 'Response Time', dataIndex: 'response_time', key: 'response_time' },
@@ -79,6 +84,24 @@ const getServerDisplay = (record) => {
   if (record.alias && record.alias.trim()) return record.alias
   if (record.ip && record.ip.trim()) return record.ip
   return ''
+}
+
+const getServerTooltip = (record) => {
+  const tooltipParts = []
+  
+  if (record.host_name && record.host_name.trim()) {
+    tooltipParts.push(`Host: ${record.host_name}`)
+  }
+  
+  if (record.alias && record.alias.trim()) {
+    tooltipParts.push(`Alias: ${record.alias}`)
+  }
+  
+  if (record.ip && record.ip.trim()) {
+    tooltipParts.push(`IP: ${record.ip}`)
+  }
+  
+  return tooltipParts.length > 0 ? tooltipParts.join('<br>') : 'No server information'
 }
 
 const fetchData = async () => {
