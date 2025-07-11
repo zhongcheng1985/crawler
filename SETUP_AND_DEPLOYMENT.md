@@ -105,6 +105,7 @@ Edit `dispatcher/DispatcherServer.py` and update the following settings:
 # Dispatcher server configuration
 HTTP_PORT = 8080      # Port for HTTP requests
 CLIENT_PORT = 8010    # Port for client connections
+HTTP_SERVER_PORT = 8020  # Agent service port
 ```
 
 Edit `dispatcher/DispatcherClient.py` and update the following settings:
@@ -114,7 +115,7 @@ Edit `dispatcher/DispatcherClient.py` and update the following settings:
 DISPATCHER_HOST = '127.0.0.1'  # Dispatcher server host
 DISPATCHER_PORT = 8010          # Dispatcher server port
 HTTP_HOST = '127.0.0.1'         # Local HTTP server host
-HTTP_PORT = 80                   # Local HTTP server port
+HTTP_PORT = 8020                # Local HTTP server port (updated)
 ```
 
 ### 3. Dashboard Configuration
@@ -158,7 +159,7 @@ export const DISPATCHER_URL = 'http://localhost:8080'
 ### 4. Network Configuration
 
 #### Firewall Settings
-- **Agent Service**: Port 8000 (HTTP and WebSocket)
+- **Agent Service**: Port 8020 (HTTP and WebSocket)
 - **Dispatcher**: Port 8080 (HTTP) and 8010 (Client)
 - **Dashboard Backend**: Port 8001 (HTTP)
 - **Dashboard Frontend**: Port 3000 (Development) or 80 (Production)
@@ -167,7 +168,7 @@ export const DISPATCHER_URL = 'http://localhost:8080'
 #### Windows Firewall
 ```bash
 # Allow agent service
-netsh advfirewall firewall add rule name="Crawler Agent" dir=in action=allow protocol=TCP localport=8000
+netsh advfirewall firewall add rule name="Crawler Agent" dir=in action=allow protocol=TCP localport=8020
 
 # Allow dispatcher
 netsh advfirewall firewall add rule name="Crawler Dispatcher" dir=in action=allow protocol=TCP localport=8080
@@ -186,7 +187,7 @@ cd agent
 python agent.py
 ```
 
-The service will start on `http://localhost:8000`
+The service will start on `http://localhost:8020`
 
 ### 2. Start Dispatcher
 
@@ -368,7 +369,7 @@ RUN npm install
 RUN npm run build
 
 # Expose ports
-EXPOSE 8000 8001 8080 8010
+EXPOSE 8020 8001 8080 8010
 
 # Start services
 CMD ["python", "agent/agent.py"]
@@ -393,7 +394,7 @@ services:
   agent:
     build: .
     ports:
-      - "8000:8000"
+      - "8020:8020"
     depends_on:
       - mysql
     environment:
@@ -498,7 +499,7 @@ import json
 def check_health():
     try:
         # Check agent service
-        response = requests.get('http://localhost:8000/health', timeout=5)
+        response = requests.get('http://localhost:8020/health', timeout=5)
         if response.status_code == 200:
             data = response.json()
             print(f"Agent Status: {data['status']}")
@@ -546,8 +547,8 @@ if __name__ == '__main__':
 **Symptoms**: Extension can't connect to agent
 **Solutions**:
 - Check firewall settings
-- Verify agent service is running
-- Check port 8000 is available
+- Verify agent service is running on port 8020
+- Check port 8020 is available
 
 #### 3. Dispatcher Connection Failed
 **Symptoms**: Requests not reaching agent
@@ -555,6 +556,7 @@ if __name__ == '__main__':
 - Check dispatcher is running on port 8080
 - Verify agent clients are connected to dispatcher
 - Check network connectivity
+- Verify agent service is running on port 8020
 
 #### 4. UIA Elements Not Found
 **Symptoms**: Element interaction fails

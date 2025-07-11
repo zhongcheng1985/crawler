@@ -3,7 +3,7 @@
 ## Base URL
 ```
 http://localhost:8080 (via Dispatcher)
-http://localhost:8000 (direct to Agent)
+http://localhost:8020 (direct to Agent)
 ```
 
 ## Architecture Overview
@@ -11,7 +11,7 @@ http://localhost:8000 (direct to Agent)
 The system now uses a dispatcher-based architecture:
 
 ```
-Client → Dispatcher (Port 8080) → Agent Service (Port 8000) → Chrome Browser
+Client → Dispatcher (Port 8080) → Agent Service (Port 8020) → Chrome Browser
 ```
 
 - **Dispatcher**: Load balancer that distributes requests across multiple agent instances
@@ -360,7 +360,7 @@ curl -X POST http://localhost:8080/api/destroy \
 
 ### WebSocket Connection
 
-**URL:** `ws://localhost:8000/ws/ext`
+**URL:** `ws://localhost:8020/ws/ext`
 
 **Description:** Real-time communication channel between Chrome extension and agent service.
 
@@ -479,6 +479,7 @@ http://localhost:3000 (Frontend UI)
       "id": 1,
       "host_name": "crawler-01",
       "alias": "Primary Crawler",
+      "max_browser_count": 5,
       "ip": "192.168.1.100",
       "os": "Windows 10",
       "agent": "Chrome/91.0",
@@ -510,6 +511,7 @@ http://localhost:3000 (Frontend UI)
   "id": 1,
   "host_name": "crawler-01",
   "alias": "Updated Alias",
+  "max_browser_count": 5,
   "ip": "192.168.1.100",
   "os": "Windows 10",
   "agent": "Chrome/91.0",

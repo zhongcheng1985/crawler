@@ -15,7 +15,7 @@ This project is a comprehensive web automation and crawling system that combines
 ┌─────────────────┐    WebSocket    ┌─────────────────┐
 │   Chrome        │◄──────────────► │   Agent         │
 │   Extension     │                 │   Service       │
-│   (UIA)         │                 │   (Port 8000)   │
+│   (UIA)         │                 │   (Port 8020)   │
 └─────────────────┘                 └─────────────────┘
                                               │
                                               │ HTTP API
@@ -96,10 +96,10 @@ This project is a comprehensive web automation and crawling system that combines
 
 ### 3. Dispatcher (`dispatcher/`)
 
-**Purpose**: Load balancer and session distribution system that manages multiple crawler instances.
+**Purpose**: Load balancer and session distribution system that manages multiple crawler instances with database integration.
 
 **Key Files**:
-- `DispatcherServer.py` - Main dispatcher server that distributes requests
+- `DispatcherServer.py` - Main dispatcher server with database integration
 - `DispatcherClient.py` - Client component that connects to dispatcher
 - `create_table.sql` - Database schema for dispatcher tracking
 
@@ -109,16 +109,19 @@ This project is a comprehensive web automation and crawling system that combines
 - **Client Distribution**: Distributes HTTP requests across available crawler instances
 - **Session Routing**: Routes sessions to appropriate crawler based on availability
 - **Health Monitoring**: Tracks client health and availability
+- **Database Integration**: Stores session and request data in MySQL
 
 #### Session Management
-- **Session Tracking**: Maintains session-to-client mapping
+- **Session Tracking**: Maintains session-to-client mapping with database persistence
 - **Request Logging**: Logs all requests for monitoring and debugging
 - **Failover Support**: Handles client disconnections and reconnections
+- **Connection Pooling**: Efficient database connection management
 
 #### Architecture
 - **HTTP Proxy**: Acts as HTTP proxy between clients and crawler instances
 - **WebSocket Support**: Maintains WebSocket connections for real-time communication
-- **Connection Pooling**: Manages multiple concurrent connections
+- **Database Integration**: MySQL integration for persistent data storage
+- **Message Protocol**: Custom message delimiter for reliable communication
 
 ### 4. Dashboard (`dashboard/` + `dashboard-ui/`)
 
@@ -144,6 +147,7 @@ This project is a comprehensive web automation and crawling system that combines
 - **RESTful API**: Clean API endpoints for frontend consumption
 - **Database Integration**: MySQL database for data persistence
 - **Authentication**: User authentication and session management
+- **Enhanced Queries**: Improved database queries with better performance
 
 **Database Schema**:
 
@@ -199,9 +203,10 @@ destroy_session(session_id)
 
 ### Dispatcher Architecture
 - **Load Balancing**: Distributes requests across multiple crawler instances
-- **Session Persistence**: Maintains session state across requests
+- **Session Persistence**: Maintains session state across requests with database storage
 - **Health Monitoring**: Tracks crawler instance health and availability
 - **Failover**: Automatic failover to healthy instances
+- **Database Integration**: MySQL integration for persistent data storage
 
 ## Configuration
 
@@ -220,6 +225,7 @@ destroy_session(session_id)
 - `HTTP_PORT`: Dispatcher HTTP port (default: 8080)
 - `CLIENT_PORT`: Dispatcher client port (default: 8010)
 - `DISPATCHER_HOST`: Dispatcher server host (default: 127.0.0.1)
+- `HTTP_SERVER_PORT`: Agent service port (default: 8020)
 
 ## Security Considerations
 
@@ -228,6 +234,7 @@ destroy_session(session_id)
 3. **Network Monitoring**: All network traffic is logged and monitored
 4. **Access Control**: API endpoints require valid session IDs
 5. **Load Balancer Security**: Dispatcher provides additional security layer
+6. **Database Security**: Secure database connections with connection pooling
 
 ## Performance Features
 
@@ -237,6 +244,7 @@ destroy_session(session_id)
 4. **Parallel Processing**: Support for multiple concurrent sessions
 5. **Load Balancing**: Distributes load across multiple crawler instances
 6. **Modern Frontend**: Fast, responsive UI with real-time updates
+7. **Database Optimization**: Enhanced queries with better performance
 
 ## Monitoring and Logging
 
@@ -245,6 +253,7 @@ destroy_session(session_id)
 3. **Performance Metrics**: Response times and status codes tracked
 4. **Error Handling**: Comprehensive error logging and reporting
 5. **Dispatcher Logging**: Load balancer request and response logging
+6. **Database Logging**: Database operations and connection monitoring
 
 ## Use Cases
 
@@ -281,6 +290,10 @@ destroy_session(session_id)
 - asyncio
 - logging
 - datetime
+- mysql-connector-python
+- socket
+- uuid
+- json
 
 ### Chrome Extension
 - Chrome Extensions API
@@ -289,7 +302,7 @@ destroy_session(session_id)
 
 ## Deployment
 
-1. **Agent Service**: Run on port 8000 with WebSocket support
+1. **Agent Service**: Run on port 8020 with WebSocket support
 2. **Dispatcher**: Run on port 8080 for load balancing
 3. **Dashboard Backend**: Run on separate port with MySQL database
 4. **Dashboard Frontend**: Build and serve static files

@@ -29,7 +29,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              Agent Service Layer                            │
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                    FastAPI Application (Port 8000)                  │    │
+│  │                    FastAPI Application (Port 8020)                  │    │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────┐     │    │
 │  │  │   HTTP      │  │  WebSocket  │  │   Session   │  │   UIA   │     │    │
 │  │  │   API       │  │   Handler   │  │  Manager    │  │ Handler │     │    │
@@ -478,5 +478,5 @@ async def fun_chrome_start(session_id:str):
 ### Data Security
 - **Database Encryption**: MySQL data encryption
 - **Log Sanitization**: Sensitive data removed from logs
-- **Access Logging**: Complete audit trail of all operations
+- **Access Logging**: Complete audit trail of all operations 
 - **Frontend Security**: Vue.js security best practices 
