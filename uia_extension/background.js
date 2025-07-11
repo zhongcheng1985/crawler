@@ -9,7 +9,7 @@ function generateId() {
 let webSocket;
 // ----------
 function connectWebSocket() {
-  webSocket = new WebSocket("ws://127.0.0.1:8000/ws/ext");
+  webSocket = new WebSocket("ws://127.0.0.1:8020/ws/ext");
   // onopen
   webSocket.onopen = () => {
     console.log("WebwebSocket connected");

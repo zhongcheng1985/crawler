@@ -1,7 +1,7 @@
 <template>
   <a-card :bordered="false">
     <div class="table-operator">
-      <a-input v-model:value="searchKeyword" placeholder="Search..." style="width:200px;margin-right:8px;" @pressEnter="handleSearch" />
+      <a-input v-model:value="searchKeyword" placeholder="host/ip/alias/session/api" style="width:200px;margin-right:8px;" @pressEnter="handleSearch" />
       <a-button type="primary" @click="handleSearch">
         <template #icon><search-outlined /></template>
         Search
@@ -44,7 +44,7 @@ import { useRoute } from 'vue-router'
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
   { title: 'Server', key: 'server' },
-  { title: 'Session', dataIndex: 'session', key: 'session' },
+  { title: 'Session', dataIndex: 'session_id', key: 'session' },
   { title: 'API', dataIndex: 'api', key: 'api' },
   { title: 'Request Time', dataIndex: 'request_time', key: 'request_time' },
   { title: 'Response Time', dataIndex: 'response_time', key: 'response_time' },

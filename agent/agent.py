@@ -122,7 +122,7 @@ async def fun_query_tabs(session_id: str):
     """Query the currently active tabs for a given session."""
     if not session_id:
         return
-    chrome_websocket = sessionS_websocketO[session_id]
+    chrome_websocket = sessionS_websocketO.get(session_id)
     if not chrome_websocket:
         return
     id = fun_message_id()
@@ -142,7 +142,7 @@ def fun_find_window(session_id: str):
     """Find the Chrome browser window for a given session."""
     if not session_id:
         return
-    chrome_process = sessionS_processO[session_id]
+    chrome_process = sessionS_processO.get(session_id)
     if not chrome_process:
         return
     chrome_window = None
@@ -522,7 +522,7 @@ async def api():
     return HTMLResponse(api_html)
 
 @app.post(r'/api/start')
-async def api_start(response: Response, data: Optional[Dict[str, Any]], session_id: Optional[str] = Header(None, alias="x-session-id")):
+async def api_start(response: Response, data: Optional[Dict[str, Any]], session_id: Optional[str] = Header(None, alias="X-Session-Id")):
     proxy = data.get('proxy') if data else None
     if not session_id:
         session_id = fun_session_id()
@@ -533,14 +533,14 @@ async def api_start(response: Response, data: Optional[Dict[str, Any]], session_
     # 设置 header
     rsp = {r'session_id': session_id}
     if session_id:
-        response.headers['x-session-id'] = session_id
+        response.headers['X-Session-Id'] = session_id
         rsp[r'session_id'] = session_id
     logger.info(r'api start:' + str(rsp))
     return rsp
 
 @app.post(r'/api/go')
 @require_params('session_id', 'url')
-async def api_go(data: Dict[str, Any], session_id: str = Header(None, alias="x-session-id")):
+async def api_go(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
     url = data.get('url')
     rsp = {r'url': url}
     title = await fun_session_go(session_id, url)
@@ -561,7 +561,7 @@ async def api_go(data: Dict[str, Any], session_id: str = Header(None, alias="x-s
 
 @app.post(r'/api/download')
 @require_params('request_id', 'tab_id')
-async def api_download(data: Dict[str, Any], session_id: str = Header(None, alias="x-session-id")):
+async def api_download(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
     tab_id = data.get('tab_id')
     request_id = data.get('request_id')
     data_rsp = await fun_session_download(session_id, tab_id, request_id)
@@ -571,7 +571,7 @@ async def api_download(data: Dict[str, Any], session_id: str = Header(None, alia
 
 @app.post(r'/api/click')
 @require_params('session_id', 'element_id')
-async def api_click(data: Dict[str, Any], session_id: str = Header(None, alias="x-session-id")):
+async def api_click(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
     element_id = data.get('element_id')
     text = await fun_session_click(session_id, element_id)
     rsp = {r'element_id': element_id, r'text': text}
@@ -580,7 +580,7 @@ async def api_click(data: Dict[str, Any], session_id: str = Header(None, alias="
 
 @app.post(r'/api/input')
 @require_params('session_id', 'element_id', 'keys')
-async def api_input(data: Dict[str, Any], session_id: str = Header(None, alias="x-session-id")):
+async def api_input(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
     element_id = data.get('element_id')
     keys = data.get('keys')
     keys_rsp = await fun_session_input(session_id, element_id, keys)
@@ -590,9 +590,9 @@ async def api_input(data: Dict[str, Any], session_id: str = Header(None, alias="
 
 @app.post(r'/api/destroy')
 @require_params('session_id')
-async def api_destroy(response: Response, data: Dict[str, Any], session_id: str = Header(None, alias="x-session-id")):
+async def api_destroy(response: Response, data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
     session_id = await fun_session_destroy(session_id)
-    response.headers['x-session-id'] = session_id
+    response.headers['X-Session-Id'] = session_id
     rsp = {r'session_id': session_id}
     logger.info(r'api destroy:' + str(rsp))
     return rsp
@@ -849,7 +849,7 @@ def uvicorn_run():
     uvicorn.run(
         app,
         host=r'127.0.0.1',  # 只监听本地
-        port=8000,
+        port=8020,
         log_level=r'info'
     )
 
