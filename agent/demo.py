@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     # ----------  ---------- 1. start session ----------  ----------
     tip("1. start session")
-    url = 'http://127.0.0.1:8000/api/start'
+    url = 'http://127.0.0.1:8020/api/start'
     data = {}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')
@@ -44,8 +44,8 @@ if __name__ == '__main__':
         session_id=rsp['session_id']
     # ----------  ---------- 2. go ----------  ----------
     tip("2. go")
-    url = 'http://127.0.0.1:8000/api/go'
-    data = {"url":"http://127.0.0.1:8000/demo.html"}
+    url = 'http://127.0.0.1:8020/api/go'
+    data = {"url":"http://127.0.0.1:8020/demo.html"}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')
     req.add_header('Content-Type', 'application/json')
@@ -56,7 +56,7 @@ if __name__ == '__main__':
         print("<="+str(rsp))
     # ----------  ---------- 3. input ----------  ----------
     tip("3. input")
-    url = 'http://127.0.0.1:8000/api/input'
+    url = 'http://127.0.0.1:8020/api/input'
     data = {"element_id":"10_185_222_213","keys":"abcdef{tab}123456"}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')
@@ -68,7 +68,7 @@ if __name__ == '__main__':
         print("<="+str(rsp))
     # ----------  ---------- 4. click ----------  ----------
     tip("4. click")
-    url = 'http://127.0.0.1:8000/api/click'
+    url = 'http://127.0.0.1:8020/api/click'
     data = {"element_id":"445_185_485_213"}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         print("<="+str(rsp))
     # ----------  ---------- 5. close session ----------  ----------
     tip("5. close session")
-    url = 'http://127.0.0.1:8000/api/destroy'
+    url = 'http://127.0.0.1:8020/api/destroy'
     data = {}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')

@@ -1,3 +1,6 @@
+#
+# pip install mysql-connector-python
+#
 #==========  IMPORTS AND CONFIGURATION  ==========
 import asyncio
 import socket
@@ -16,8 +19,6 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s %(me
 #==========  CONSTANTS AND CONFIGURATION  ==========
 HTTP_PORT = 8000
 CLIENT_PORT = 8010
-HTTP_HOST = '127.0.0.1'
-HTTP_SERVER_PORT = 8020
 
 # Database configuration
 db_config = {
