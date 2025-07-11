@@ -39,8 +39,8 @@
     >
       <a-form
         :model="formState"
-        :label-col="{ span: 6 }"
-        :wrapper-col="{ span: 16 }"
+        :label-col="{ span: 8 }"
+        :wrapper-col="{ span: 14 }"
       >
         <a-form-item label="Host Name">
           <a-input v-model:value="formState.host_name" disabled />
@@ -48,13 +48,8 @@
         <a-form-item label="Alias" name="alias" :rules="[{ required: true, message: 'Please enter alias!' }]">
           <a-input v-model:value="formState.alias" />
         </a-form-item>
-        <a-form-item label="Status">
-          <a-tag :color="formState.status === 10 ? 'green' : formState.status === 20 ? 'red' : formState.status === 30 ? 'default' : 'default'">
-            {{ crawlerStatus[formState.status] }}
-          </a-tag>
-        </a-form-item>
-        <a-form-item label="Last Heartbeat">
-          <a-input v-model:value="formState.last_heartbeat" disabled />
+        <a-form-item label="Max Browser Count" name="max_browser_count">
+          <a-input-number v-model:value="formState.max_browser_count" :min="1" :max="100" style="width: 100%" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -74,6 +69,7 @@ const columns = [
   { title: 'IP', dataIndex: 'ip', key: 'ip' },
   { title: 'OS', dataIndex: 'os', key: 'os' },
   { title: 'Agent', dataIndex: 'agent', key: 'agent' },
+  { title: 'Max Browser Count', dataIndex: 'max_browser_count', key: 'max_browser_count' },
   { title: 'Last Heartbeat', dataIndex: 'last_heartbeat', key: 'last_heartbeat' },
   { title: 'Status', key: 'status' },
   { title: 'Action', key: 'action' }
@@ -86,8 +82,7 @@ const formState = ref({
   id: '',
   host_name: '',
   alias: '',
-  status: '',
-  last_heartbeat: ''
+  max_browser_count: null
 })
 const currentItem = ref({})
 const pagination = ref({
@@ -132,8 +127,7 @@ const editItem = (record) => {
     id: record.id,
     host_name: record.host_name,
     alias: record.alias,
-    status: record.status,
-    last_heartbeat: record.last_heartbeat
+    max_browser_count: record.max_browser_count || null
   }
   visible.value = true
 }
@@ -142,13 +136,15 @@ const handleOk = async () => {
   try {
     await modifyCrawler({
       id: formState.value.id,
-      alias: formState.value.alias
+      alias: formState.value.alias,
+      max_browser_count: formState.value.max_browser_count
     })
     
     // Update local data
     const index = data.value.findIndex(item => item.id === formState.value.id)
     if (index !== -1) {
       data.value[index].alias = formState.value.alias
+      data.value[index].max_browser_count = formState.value.max_browser_count
     }
     
     visible.value = false

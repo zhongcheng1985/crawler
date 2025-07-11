@@ -1,7 +1,7 @@
 <template>
   <a-card :bordered="false">
     <div class="table-operator">
-      <a-input v-model:value="searchKeyword" placeholder="Search..." style="width:200px;margin-right:8px;" @pressEnter="handleSearch" />
+      <a-input v-model:value="searchKeyword" placeholder="host/ip/alias/session" style="width:200px;margin-right:8px;" @pressEnter="handleSearch" />
       <a-button type="primary" @click="handleSearch">
         <template #icon><search-outlined /></template>
         Search
@@ -20,7 +20,12 @@
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'server'">
-          {{ getServerDisplay(record) }}
+          <a-tooltip placement="top" :overlay-inner-style="{ whiteSpace: 'pre-line' }">
+            <template #title>
+              <div v-html="getServerTooltip(record)"></div>
+            </template>
+            <span>{{ getServerDisplay(record) }}</span>
+          </a-tooltip>
         </template>
         <template v-else-if="column.key === 'crawler_server'">
           {{ getCrawlerName(record.crawler_id) }}
@@ -39,7 +44,7 @@ import { useRoute } from 'vue-router'
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
   { title: 'Server', key: 'server' },
-  { title: 'Session', dataIndex: 'session', key: 'session' },
+  { title: 'Session', dataIndex: 'session_id', key: 'session_id' },
   { title: 'URL', dataIndex: 'url', key: 'url' },
   { title: 'Init Time', dataIndex: 'init_time', key: 'init_time' },
   { title: 'Destroy Time', dataIndex: 'destroy_time', key: 'destroy_time' }
@@ -71,6 +76,24 @@ const getServerDisplay = (record) => {
   if (record.alias && record.alias.trim()) return record.alias
   if (record.ip && record.ip.trim()) return record.ip
   return ''
+}
+
+const getServerTooltip = (record) => {
+  const tooltipParts = []
+  
+  if (record.host_name && record.host_name.trim()) {
+    tooltipParts.push(`Host: ${record.host_name}`)
+  }
+  
+  if (record.alias && record.alias.trim()) {
+    tooltipParts.push(`Alias: ${record.alias}`)
+  }
+  
+  if (record.ip && record.ip.trim()) {
+    tooltipParts.push(`IP: ${record.ip}`)
+  }
+  
+  return tooltipParts.length > 0 ? tooltipParts.join('<br>') : 'No server information'
 }
 
 const fetchCrawlers = async () => {

@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS `crawler_status` (
 CREATE TABLE IF NOT EXISTS `crawler_session` (
   `id` int NOT NULL AUTO_INCREMENT,
   `crawler_id` int NOT NULL,
-  `session` varchar(50) DEFAULT NULL,
+  `session_id` varchar(50) DEFAULT NULL,
   `init_time` datetime DEFAULT NULL,
   `url` varchar(500) DEFAULT NULL,
   `title` varchar(50) DEFAULT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS `api_log` (
 -- Create indexes for better performance
 CREATE INDEX `idx_crawler_status_status` ON `crawler_status` (`status`);
 CREATE INDEX `idx_crawler_status_heartbeat` ON `crawler_status` (`last_heartbeat`);
-CREATE INDEX `idx_crawler_session_session` ON `crawler_session` (`session`);
+CREATE INDEX `idx_crawler_session_session` ON `crawler_session` (`session_id`);
 CREATE INDEX `idx_crawler_session_init` ON `crawler_session` (`init_time`);
 CREATE INDEX `idx_api_log_request` ON `api_log` (`request_time`);
 CREATE INDEX `idx_api_log_status` ON `api_log` (`status_code`);

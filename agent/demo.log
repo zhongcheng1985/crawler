@@ -1,29 +1,69 @@
-E:\crawler\agent>start /b python agent.py & timeout /t 2 /nobreak & python demo.py
+E:\crawler\code\agent>start /b python agent.py & timeout /t 2 /nobreak & python demo.py
 
-等待 0 秒，按 CTRL+C 退出 ...INFO:__main__:正在启动
-INFO:     ('127.0.0.1', 59827) - "WebSocket /ws/ext" [accepted]
-INFO:__main__:websocket accept:127.0.0.1 59827
-INFO:     connection openrtup complete.       
-INFO:__main__:api go:{'session_id': 'd844aabe'}000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:59816 - "POST /api/start HTTP/1.1" 200 OK
+等待 12025-07-10 17:49:32 - INFO - 正在启动
+INFO:     Started server process [12228]
+INFO:0    Waiting for application startup.
+INFO:     ('127.0.0.1', 51521) - "WebSocket /ws/ext" [accepted]
+2025-07-10 17:49:36 - INFO - websocket accept:127.0.0.1 51521L+C to quit)
+INFO:     connection open
+2025-07-10 17:49:37 - INFO - api start:{'session_id': '4b174f2e'}
+INFO:     127.0.0.1:51509 - "POST /api/start HTTP/1.1" 200 OK
 =>{}
-<={'session_id': 'd844aabe'}
-INFO:__main__:reload button ready
-INFO:__main__:api go:{'session_id': 'd844aabe', 'url': 'http://server.joyingtech.cn/demo.html', 'title': '', 'elements': {'element_id': '0_173_1920_1030', 'name': '', 'control_type': 'DocumentControl', 'children': [{'element_id': '10_183_1910_1020', 'name': '', 'control_type': 'GroupControl', 'children': [{'element_id': '10_185_222_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '227_185_440_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '445_185_485_213', 'name': '=>', 'control_type': 'ButtonControl'}, {'element_id': '490_185_703_213', 'name': '', 'control_type': 'EditControl'}]}]}, 'responses': None}
-INFO:     127.0.0.1:59828 - "POST /api/go HTTP/1.1" 200 OK
-=>{"session_id": "d844aabe", "url": "http://server.joyingtech.cn/demo.html"}
-<={'session_id': 'd844aabe', 'url': 'http://server.joyingtech.cn/demo.html', 'title': '', 'elements': {'element_id': '0_173_1920_1030', 'name': '', 'control_type': 'DocumentControl', 'children': [{'element_id': '10_183_1910_1020', 'name': '', 'control_type': 'GroupControl', 'children': [{'element_id': '10_185_222_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '227_185_440_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '445_185_485_213', 'name': '=>', 'control_type': 'ButtonControl'}, {'element_id': '490_185_703_213', 'name': '', 'control_type': 'EditControl'}]}]}, 'responses': None}
-INFO:__main__:api input:{'session_id': 'd844aabe', 'element_id': '10_185_222_213', 'keys': ''}
-INFO:     127.0.0.1:59838 - "POST /api/input HTTP/1.1" 200 OK
-=>{"session_id": "d844aabe", "element_id": "10_185_222_213", "keys": "abcdef{tab}123456"}
-<={'session_id': 'd844aabe', 'element_id': '10_185_222_213', 'keys': ''}
-INFO:__main__:api click:{'session_id': 'd844aabe', 'element_id': '445_185_485_213', 'text': '=>'}
-INFO:     127.0.0.1:59839 - "POST /api/click HTTP/1.1" 200 OK
-=>{"session_id": "d844aabe", "element_id": "445_185_485_213"}
-<={'session_id': 'd844aabe', 'element_id': '445_185_485_213', 'text': '=>'}
-INFO:__main__:websocket close:127.0.0.1 59827
+<={'session_id': '4b174f2e'}
+2025-07-10 17:49:39 - INFO - Imported existing <module 'comtypes.gen' from 'C:\\Users\\zhongcheng\\AppData\\Roaming\\Python\\Python38\\site-packages\\comtypes\\gen\\__init__.py'>
+2025-07-10 17:49:39 - INFO - Using writeable comtypes cache directory: 'C:\Users\zhongcheng\AppData\Roaming\Python\Python38\site-packages\comtypes\gen'
+2025-07-10 17:49:42 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"2fb66202-6ddc-4407-b7e3-92a893e1a241","time":"2025/7/10 17:49:41","command":"Event.webNavigation.onBeforeNavigate","params":{"documentLifecycle":"active","frameId":0,"frameType":"outermost_frame","parentFrameId":-1,"processId":-1,"tabId":58074735,"timeStamp":1752140981663.691,"url":"http://127.0.0.1:8000/demo.html"}}
+2025-07-10 17:49:42 - INFO - session_tab_response cleared:4b174f2e 58074735
+2025-07-10 17:49:42 - INFO - session_tab_loaded cleared:4b174f2e 58074735
+INFO:     127.0.0.1:51525 - "GET /demo.html HTTP/1.1" 200 OK
+2025-07-10 17:49:42 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"2be152f5-adb1-4e81-a814-7bc535771cdb","time":"2025/7/10 17:49:42","command":"Event.webRequest.onResponseStarted","params":{"documentLifecycle":"active","frameId":0,"frameType":"outermost_frame","fromCache":false,"ip":"127.0.0.1","method":"GET","parentFrameId":-1,"requestId":"55","responseHeaders":[{"name":"date","value":"Thu, 10 Jul 
+2025 09:49:38 GMT"},{"name":"server","value":"uvicorn"},{"name":"content-length","value":"438"},{"name":"content-type","value":"text/html; charset=utf-8"}],"statusCode":200,"statusLine":"HTTP/1.1 200 OK","tabId":58074735,"timeStamp":1752140982195.212,"type":"main_frame","url":"http://127.0.0.1:8000/demo.html"}}
+2025-07-10 17:49:42 - INFO - session_tab_response append:4b174f2e 58074735
+INFO:     127.0.0.1:51525 - "GET /demo.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51526 - "GET /demo.js HTTP/1.1" 200 OK
+2025-07-10 17:49:42 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"3ceab5f8-008e-4abd-b21f-ef3cc300fed1","time":"2025/7/10 17:49:42","command":"Event.tabs.onUpdated","source":{"tabId":58074735},"params":{"status":"loading","url":"http://127.0.0.1:8000/demo.html"}}
+2025-07-10 17:49:42 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"d439ceae-c901-4aaa-a6a0-31274f44ae78","time":"2025/7/10 17:49:42","command":"Event.tabs.onUpdated","source":{"tabId":58074735},"params":{"title":"demo"}}
+INFO:     127.0.0.1:51526 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+2025-07-10 17:49:42 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"2b88df93-d920-48e0-96a6-b567b1f8258e","time":"2025/7/10 17:49:42","command":"Event.webRequest.onResponseStarted","params":{"documentId":"003CA32C6F11DE99416ED07B5D1CAA44","documentLifecycle":"active","frameId":0,"frameType":"outermost_frame","fromCache":false,"initiator":"http://127.0.0.1:8000","ip":"127.0.0.1","method":"GET","parentFrameId":-1,"requestId":"56","responseHeaders":[{"name":"date","value":"Thu, 10 Jul 2025 09:49:38 GMT"},{"name":"server","value":"uvicorn"},{"name":"content-length","value":"42"},{"name":"content-type","value":"text/css; charset=utf-8"}],"statusCode":200,"statusLine":"HTTP/1.1 200 OK","tabId":58074735,"timeStamp":1752140982242.576,"type":"stylesheet","url":"http://127.0.0.1:8000/demo.css"}}
+2025-07-10 17:49:42 - INFO - session_tab_response append:4b174f2e 58074735
+2025-07-10 17:49:42 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"05a24729-ed69-42e9-8721-57f7f2cb9e33","time":"2025/7/10 17:49:42","command":"Event.webRequest.onResponseStarted","params":{"documentId":"003CA32C6F11DE99416ED07B5D1CAA44","documentLifecycle":"active","frameId":0,"frameType":"outermost_frame","fromCache":false,"initiator":"http://127.0.0.1:8000","ip":"127.0.0.1","method":"GET","parentFrameId":-1,"requestId":"57","responseHeaders":[{"name":"date","value":"Thu, 10 Jul 2025 09:49:38 GMT"},{"name":"server","value":"uvicorn"},{"name":"content-length","value":"52"},{"name":"content-type","value":"application/javascript"}],"statusCode":200,"statusLine":"HTTP/1.1 200 OK","tabId":58074735,"timeStamp":1752140982243.316,"type":"script","url":"http://127.0.0.1:8000/demo.js"}}
+2025-07-10 17:49:42 - INFO - session_tab_response append:4b174f2e 58074735
+2025-07-10 17:49:42 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"50b7ac0b-dd68-4fa0-b9fd-6583636cf11d","time":"2025/7/10 17:49:42","command":"Event.webNavigation.onCompleted","params":{"documentId":"003CA32C6F11DE99416ED07B5D1CAA44","documentLifecycle":"active","frameId":0,"frameType":"outermost_frame","parentFrameId":-1,"processId":18,"tabId":58074735,"timeStamp":1752140982293.382,"url":"http://127.0.0.1:8000/demo.html"}}
+2025-07-10 17:49:42 - INFO - session_tab_loaded append:4b174f2e 58074735
+2025-07-10 17:49:42 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"5d677171-906d-4a18-878a-7dd3c7cdcf48","time":"2025/7/10 17:49:42","command":"Event.tabs.onUpdated","source":{"tabId":58074735},"params":{"status":"complete"}}      
+2025-07-10 17:49:42 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"e56c0aab-dc1e-4763-85a1-5c9936fd7b20","time":"2025/7/10 17:49:42","command":"Event.webRequest.onResponseStarted","params":{"documentId":"003CA32C6F11DE99416ED07B5D1CAA44","documentLifecycle":"active","frameId":0,"frameType":"outermost_frame","fromCache":false,"initiator":"http://127.0.0.1:8000","ip":"127.0.0.1","method":"GET","parentFrameId":-1,"requestId":"58","responseHeaders":[{"name":"date","value":"Thu, 10 Jul 2025 09:49:42 GMT"},{"name":"server","value":"uvicorn"},{"name":"content-length","value":"22"},{"name":"content-type","value":"application/json"}],"statusCode":404,"statusLine":"HTTP/1.1 404 Not Found","tabId":58074735,"timeStamp":1752140982308.597,"type":"image","url":"http://127.0.0.1:8000/favicon.ico"}}
+2025-07-10 17:49:42 - INFO - session_tab_response append:4b174f2e 58074735
+2025-07-10 17:49:42 - INFO - reload button ready
+2025-07-10 17:49:43 - DEBUG - websocket send:127.0.0.1 51521
+{"id": "c8526ed5-f010-474f-acb0-e0a356a192d9", "command": "Request.queryTabs"}
+2025-07-10 17:49:43 - DEBUG - websocket received:127.0.0.1 51521
+{"id":"6e33a6e6-1182-4ee4-a957-564b7caa7ad9","time":"2025/7/10 17:49:43","reply":"c8526ed5-f010-474f-acb0-e0a356a192d9","command":"Response.queryTabs","data":[{"active":true,"audible":false,"autoDiscardable":true,"discarded":false,"groupId":-1,"height":685,"highlighted":true,"id":58074735,"incognito":false,"index":0,"lastAccessed":1752140975857.891,"mutedInfo":{"muted":false},"pinned":false,"selected":true,"status":"complete","title":"demo","url":"http://127.0.0.1:8000/demo.html","width":1536,"windowId":58074734}]}
+2025-07-10 17:49:43 - INFO - api go:{'url': 'http://127.0.0.1:8000/demo.html', 'title': 'demo', 'elements': {'element_id': '0_173_1920_1030', 'name': 'demo', 'control_type': 'DocumentControl', 'children': [{'element_id': '10_183_1930_213', 'name': '', 'control_type': 'GroupControl', 'children': [{'element_id': '10_185_222_213', 'name': '', 
+'control_type': 'EditControl'}, {'element_id': '227_185_440_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '445_185_485_213', 'name': '=>', 'control_type': 'ButtonControl'}, {'element_id': '490_185_703_213', 'name': '', 'control_type': 'EditControl'}]}]}, 'responses': [{'tab_id': 58074735, 'request_id': '55', 'url': 'http://127.0.0.1:8000/demo.html', 'status': 200}, {'tab_id': 58074735, 'request_id': '56', 'url': 'http://127.0.0.1:8000/demo.css', 'status': 200}, {'tab_id': 58074735, 'request_id': '57', 'url': 'http://127.0.0.1:8000/demo.js', 'status': 200}, {'tab_id': 58074735, 'request_id': '58', 'url': 'http://127.0.0.1:8000/favicon.ico', 'status': 404}]} 
+INFO:     127.0.0.1:51522 - "POST /api/go HTTP/1.1" 200 OK
+=>{"url": "http://127.0.0.1:8000/demo.html"}
+<={'url': 'http://127.0.0.1:8000/demo.html', 'title': 'demo', 'elements': {'element_id': '0_173_1920_1030', 'name': 'demo', 'control_type': 'DocumentControl', 'children': 
+[{'element_id': '10_183_1930_213', 'name': '', 'control_type': 'GroupControl', 'children': [{'element_id': '10_185_222_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '227_185_440_213', 'name': '', 'control_type': 'EditControl'}, {'element_id': '445_185_485_213', 'name': '=>', 'control_type': 'ButtonControl'}, {'element_id': '490_185_703_213', 'name': '', 'control_type': 'EditControl'}]}]}, 'responses': [{'tab_id': 58074735, 'request_id': '55', 'url': 'http://127.0.0.1:8000/demo.html', 'status': 200}, {'tab_id': 58074735, 'request_id': '56', 'url': 'http://127.0.0.1:8000/demo.css', 'status': 200}, {'tab_id': 58074735, 'request_id': '57', 'url': 'http://127.0.0.1:8000/demo.js', 'status': 200}, {'tab_id': 58074735, 'request_id': '58', 'url': 'http://127.0.0.1:8000/favicon.ico', 'status': 404}]}
+2025-07-10 17:49:47 - INFO - api input:{'element_id': '10_185_222_213', 'keys': ''}
+INFO:     127.0.0.1:51529 - "POST /api/input HTTP/1.1" 200 OK
+=>{"element_id": "10_185_222_213", "keys": "abcdef{tab}123456"}
+<={'element_id': '10_185_222_213', 'keys': ''}
+2025-07-10 17:49:50 - INFO - api click:{'element_id': '445_185_485_213', 'text': '=>'}
+INFO:     127.0.0.1:51532 - "POST /api/click HTTP/1.1" 200 OK
+=>{"element_id": "445_185_485_213"}
+<={'element_id': '445_185_485_213', 'text': '=>'}
+2025-07-10 17:49:53 - INFO - websocket close:127.0.0.1 51521
 INFO:     connection closed
-INFO:__main__:api destroy:{'session_id': 'd844aabe'}
-INFO:     127.0.0.1:59841 - "POST /api/destroy HTTP/1.1" 200 OK
-=>{"session_id": "d844aabe"}
-<=None
+2025-07-10 17:49:53 - INFO - api destroy:{'session_id': '4b174f2e'}
+INFO:     127.0.0.1:51534 - "POST /api/destroy HTTP/1.1" 200 OK
+=>{}
+<={'session_id': '4b174f2e'}

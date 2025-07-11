@@ -45,10 +45,11 @@ if __name__ == '__main__':
     # ----------  ---------- 2. go ----------  ----------
     tip("2. go")
     url = 'http://127.0.0.1:8000/api/go'
-    data = {"session_id":session_id,"url":"http://127.0.0.1:8000/demo.html"}
+    data = {"url":"http://127.0.0.1:8000/demo.html"}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')
     req.add_header('Content-Type', 'application/json')
+    req.add_header('x-session-id', session_id)
     with urlopen(req) as response:
         print("=>"+str(dataS))
         rsp = json.loads(response.read().decode('utf-8'))
@@ -56,10 +57,11 @@ if __name__ == '__main__':
     # ----------  ---------- 3. input ----------  ----------
     tip("3. input")
     url = 'http://127.0.0.1:8000/api/input'
-    data = {"session_id":session_id,"element_id":"10_185_222_213","keys":"abcdef{tab}123456"}
+    data = {"element_id":"10_185_222_213","keys":"abcdef{tab}123456"}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')
     req.add_header('Content-Type', 'application/json')
+    req.add_header('x-session-id', session_id)
     with urlopen(req) as response:
         print("=>"+str(dataS))
         rsp = json.loads(response.read().decode('utf-8'))
@@ -67,10 +69,11 @@ if __name__ == '__main__':
     # ----------  ---------- 4. click ----------  ----------
     tip("4. click")
     url = 'http://127.0.0.1:8000/api/click'
-    data = {"session_id":session_id,"element_id":"445_185_485_213"}
+    data = {"element_id":"445_185_485_213"}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')
     req.add_header('Content-Type', 'application/json')
+    req.add_header('x-session-id', session_id)
     with urlopen(req) as response:
         print("=>"+str(dataS))
         rsp = json.loads(response.read().decode('utf-8'))
@@ -78,10 +81,11 @@ if __name__ == '__main__':
     # ----------  ---------- 5. close session ----------  ----------
     tip("5. close session")
     url = 'http://127.0.0.1:8000/api/destroy'
-    data = {"session_id":session_id}
+    data = {}
     dataS = json.dumps(data)
     req = Request(url, data=dataS.encode('utf-8'), method='POST')
     req.add_header('Content-Type', 'application/json')
+    req.add_header('x-session-id', session_id)
     with urlopen(req) as response:
         print("=>"+str(dataS))
         rsp = json.loads(response.read().decode('utf-8'))

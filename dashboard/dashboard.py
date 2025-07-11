@@ -62,28 +62,17 @@ class BaseResponse(BaseModel):
 def format_datetime(dt: Optional[datetime]) -> Optional[str]:
     return dt.isoformat() if dt else None
 
-def build_where_clause(params: dict) -> tuple:
-    conditions = []
-    values = []
-    for key, value in params.items():
-        if value is not None:
-            if key == 'keyword':
-                like_value = f"%{value}%"
-                # 使用正确的表别名cstat
-                conditions.append("(ci.alias LIKE %s OR cstat.host_name LIKE %s OR cstat.ip LIKE %s)")
-                values.extend([like_value, like_value, like_value])
-            else:
-                conditions.append(f"{key} = %s")
-                values.append(value)
-    return (" AND ".join(conditions), values) if conditions else ("", [])
-
 def apply_pagination(query: str, params: list, pagination: Optional[Pagination] = None) -> tuple:
     if pagination is None:
         pagination = Pagination()
     
-    offset = (pagination.page_num - 1) * pagination.page_size
+    # Ensure page_num and page_size are not None
+    page_num = pagination.page_num or 1
+    page_size = pagination.page_size or 10
+    
+    offset = (page_num - 1) * page_size
     query += " LIMIT %s OFFSET %s"
-    params.extend([pagination.page_size, offset])
+    params.extend([page_size, offset])
     return query, params
 
 # API Endpoints
@@ -95,7 +84,7 @@ def crawler_grid(request: CrawlerGridRequest, db=Depends(get_db_connection)):
         
         # 修正表别名使用 - 确保与JOIN语句中的别名一致
         query = """
-        SELECT ci.id, cstat.host_name, ci.alias, cstat.ip, cstat.os, cstat.agent, 
+        SELECT ci.id, cstat.host_name, ci.alias,ci.max_browser_count, cstat.ip, cstat.os, cstat.agent, 
                cstat.last_heartbeat, cstat.status
         FROM crawler_info ci
         JOIN crawler_status cstat ON ci.id = cstat.crawler_id
@@ -107,12 +96,16 @@ def crawler_grid(request: CrawlerGridRequest, db=Depends(get_db_connection)):
         JOIN crawler_status cstat ON ci.id = cstat.crawler_id
         """
         
-        # 修正WHERE子句中的列引用
-        where_clause, params = build_where_clause({"keyword": request.keyword})
-        if where_clause:
-            # 将cs.host_name改为cstat.host_name
-            where_clause = where_clause.replace("cs.host_name", "cstat.host_name")
-            where_clause = where_clause.replace("cs.ip", "cstat.ip")
+        # Build WHERE clause for crawler grid
+        conditions = []
+        params = []
+        if request.keyword:
+            like_value = f"%{request.keyword}%"
+            conditions.append("(ci.alias LIKE %s OR cstat.host_name LIKE %s OR cstat.ip LIKE %s)")
+            params.extend([like_value, like_value, like_value])
+        
+        if conditions:
+            where_clause = " AND ".join(conditions)
             query += " WHERE " + where_clause
             count_query += " WHERE " + where_clause
         
@@ -206,7 +199,7 @@ def session_grid(request: SessionGridRequest, db=Depends(get_db_connection)):
         
         # Base query
         query = """
-        SELECT csess.id, ci.alias, cstat.host_name, cstat.ip, csess.session, 
+        SELECT csess.id, ci.alias, cstat.host_name, cstat.ip, csess.session_id, 
                csess.url, csess.init_time, csess.destroy_time
         FROM crawler_session csess
         JOIN crawler_info ci ON csess.crawler_id = ci.id
@@ -221,18 +214,22 @@ def session_grid(request: SessionGridRequest, db=Depends(get_db_connection)):
         JOIN crawler_status cstat ON csess.crawler_id = cstat.crawler_id
         """
         
-        # Build WHERE clause
-        where_params = {}
+        # Build WHERE clause for session grid
+        conditions = []
+        params = []
         if request.keyword:
-            where_params['keyword'] = request.keyword
+            like_value = f"%{request.keyword}%"
+            conditions.append("(ci.alias LIKE %s OR cstat.host_name LIKE %s OR cstat.ip LIKE %s OR csess.session_id LIKE %s)")
+            params.extend([like_value, like_value, like_value, like_value])
         if request.crawler_id:
-            where_params['csess.crawler_id'] = request.crawler_id
+            conditions.append("csess.crawler_id = %s")
+            params.append(request.crawler_id)
         if request.session_id:
-            where_params['csess.id'] = request.session_id
+            conditions.append("csess.id = %s")
+            params.append(request.session_id)
         
-        where_clause, params = build_where_clause(where_params)
-        
-        if where_clause:
+        if conditions:
+            where_clause = " AND ".join(conditions)
             query += " WHERE " + where_clause
             count_query += " WHERE " + where_clause
         
@@ -268,7 +265,7 @@ def log_grid(request: LogGridRequest, db=Depends(get_db_connection)):
         
         # Base query
         query = """
-        SELECT al.id, ci.alias, cstat.host_name, cstat.ip, csess.session, 
+        SELECT al.id, ci.alias, cstat.host_name, cstat.ip, csess.session_id, 
                al.api, al.request_time, al.response_time, al.status_code
         FROM api_log al
         JOIN crawler_session csess ON al.crawler_session_id = csess.id
@@ -285,18 +282,22 @@ def log_grid(request: LogGridRequest, db=Depends(get_db_connection)):
         JOIN crawler_status cstat ON csess.crawler_id = cstat.crawler_id
         """
         
-        # Build WHERE clause
-        where_params = {}
+        # Build WHERE clause for log grid
+        conditions = []
+        params = []
         if request.keyword:
-            where_params['keyword'] = request.keyword
+            like_value = f"%{request.keyword}%"
+            conditions.append("(ci.alias LIKE %s OR cstat.host_name LIKE %s OR cstat.ip LIKE %s OR csess.session_id LIKE %s OR al.api LIKE %s)")
+            params.extend([like_value, like_value, like_value, like_value, like_value])
         if request.crawler_id:
-            where_params['csess.crawler_id'] = request.crawler_id
+            conditions.append("csess.crawler_id = %s")
+            params.append(request.crawler_id)
         if request.session_id:
-            where_params['al.crawler_session_id'] = request.session_id
+            conditions.append("al.crawler_session_id = %s")
+            params.append(request.session_id)
         
-        where_clause, params = build_where_clause(where_params)
-        
-        if where_clause:
+        if conditions:
+            where_clause = " AND ".join(conditions)
             query += " WHERE " + where_clause
             count_query += " WHERE " + where_clause
         
@@ -326,4 +327,4 @@ def log_grid(request: LogGridRequest, db=Depends(get_db_connection)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8050)
