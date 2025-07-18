@@ -448,16 +448,6 @@ async def api_go(data: Dict[str, Any], session_id: str = Header(None, alias="X-S
     title = await fun_session_go(session_id, url)
     if title is not None:
         rsp[r'title'] = title
-        rsp[r'elements'] = fun_uia_data(session_id)
-        tab_id = None
-        tabs = await fun_query_tabs(session_id)
-        if tabs:
-            for tab in tabs:
-                if tab[r'active']:
-                    tab_id = tab[r'id']
-                    break
-            if tab_id is not None:
-                rsp[r'responses'] = await fun_http_data(session_id, tab_id)
     return rsp
 
 @app.post(r'/api/view')

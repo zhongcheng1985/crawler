@@ -181,9 +181,6 @@ def modify_crawler(request: ModifyCrawlerRequest, db=Depends(get_db_connection))
         
         db.commit()
         
-        # Format datetime field
-        result['last_heartbeat'] = format_datetime(result['last_heartbeat'])
-        
         return result
     except Exception as e:
         db.rollback()

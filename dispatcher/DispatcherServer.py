@@ -332,6 +332,7 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
             url = None
             x_session_id = None
             content_length = 0
+            connection_close = None
             while True:
                 line = await http_reader.readline()
                 if not line:
@@ -348,14 +349,26 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
                         content_length = int(decoded.split(':', 1)[1].strip())
                     except ValueError:
                         pass
-                header_lines.append(line)
+                if decoded.lower().startswith('connection:'):
+                    # Record the original value (for possible logging or future use)
+                    connection_close = decoded[len('connection:'):].strip()
+                    # Always set to close
+                    header_lines.append(b'Connection: close\r\n')
+                    continue  # Skip appending the original line
                 if line == b'\r\n':
+                    if connection_close is None:
+                        header_lines.append(b'Connection: close\r\n')
+                    header_lines.append(line)
                     break
+                header_lines.append(line)
             
             # Check if connection is closed (no data read)
             if not header_lines:
                 logging.info(f"[SERVER][HTTP] HTTP client disconnected: {addr}")
                 break
+
+            # Ensure Connection: close header is present and set
+            # (Remove the old Connection header logic here)
             
             # Read body if present
             body_data = b""
