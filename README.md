@@ -1,34 +1,32 @@
 ## 1. Network
 
 ```
-┌─────────────────┐    WebSocket     ┌─────────────────┐
+┌─────────────────┐ WebSocket(8020)  ┌─────────────────┐
 │    Chrome       │ ───────────────► │     agent       │
 │ (uia_extension) │ ◄─────────────── │   (FastAPI)     │
 └─────────────────┘   UIAutomation   └─────────────────┘
                                               ▲
-                                              │ HTTP API
+                                              │ HTTP API(8020)
                                    ┌──────────┴──────────┐
                                    │   DispatcherClient  │
                                    │  (Asyncio Client)   │
                                    └──────────┬──────────┘
-                                              │ TCP Socket
-                                              │
-                                              │
+                                              │ TCP Socket(8010)
                                               ▼
-                                   ┌─────────────────────┐                ┌─────────────┐
-                                   │  DispatcherServer   │ ◄──────────────│    USER     │
-                                   │  (Asyncio Server)   │    HTTP API    │             │
-                                   └──────────┬──────────┘                └─────┬───────┘
-                                              │ MySQL                           │ Web Browser
-                                              ▼                                 │
-                                       ┌─────────────┐                          │
-                                       │    MySQL    │                          │
-                                       │  Database   │                          │
-                                       └─────────────┘                          │
-                                              ▲                                 │
-                                              │ MySQL                           ▼
+                                   ┌─────────────────────┐                  ┌─────────────┐
+                                   │  DispatcherServer   │ ◄────────────────│    USER     │
+                                   │  (Asyncio Server)   │  HTTP API(8000)  │             │
+                                   └──────────┬──────────┘                  └─────┬───────┘
+                                              │ MySQL(3306)                       │
+                                              ▼                                   │
+                                       ┌─────────────┐                            │
+                                       │    MySQL    │                            │
+                                       │  Database   │                            │
+                                       └─────────────┘                            │
+                                              ▲                                   │Web Browser(80)
+                                              │ MySQL(3306)                       ▼
                                      ┌────────┴────────┐                  ┌─────────────────┐
                                      │    dashboard    │ ◄─────────────── │   dashboard-ui  │
-                                     │   (Flask API)   │     HTTP API     │    (Vue.js)     │
+                                     │   (Flask API)   │   HTTP API(80)   │    (Vue.js)     │
                                      └─────────────────┘                  └─────────────────┘
 ```
