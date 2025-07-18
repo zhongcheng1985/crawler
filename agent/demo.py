@@ -17,7 +17,7 @@ def tip(message:str):
     win.update_idletasks()
     win.geometry(f"+{win.winfo_screenwidth()-win.winfo_width()-20}+{win.winfo_screenheight()-win.winfo_height()-50}")
     win.update()
-    time.sleep(2)
+    time.sleep(1)
     win.destroy()
 
 # ==========  ========== main ==========  ==========

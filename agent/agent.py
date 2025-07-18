@@ -347,7 +347,7 @@ async def fun_session_destroy(session_id: str) -> str:
     if session_id in sessionS_tabN_loadedLS:
         del sessionS_tabN_loadedLS[session_id]
     import asyncio
-    await asyncio.sleep(0.200)
+    await asyncio.sleep(0.500)
     fun_clear_data(session_id)
     return session_id
 
@@ -455,6 +455,12 @@ async def api_go(data: Dict[str, Any], session_id: str = Header(None, alias="X-S
 async def api_view(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
     rsp = {}
     rsp[r'elements'] = fun_uia_data(session_id)
+    return rsp
+
+@app.post(r'/api/network')
+@require_params('session_id')
+async def api_network(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
+    rsp = {}
     tabs = await fun_query_tabs(session_id)
     if tabs:
         tab_id = None
