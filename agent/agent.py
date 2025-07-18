@@ -379,6 +379,9 @@ root_html = '''
         <div>
             <a href='/ws'><h1>/ws</h1></a>
         </div>
+        <div>
+            <a href='/demo.html'><h1>/demo</h1></a>
+        </div>
     </body>
 </html>
 '''
@@ -395,124 +398,24 @@ api_html = '''
     <body>
         <div>
             <h1>/api/start</h1>
-            <div>Method: Post</div>
-            <div>Content-Type: application/json</div>
-            <div>
-                <div>Request Body:</div>
-                <ul>
-                    <li>session_id:str (opt)</li>
-                </ul>
-            </div>
-            <div>
-                <div>Response Body:</div>
-                <ui>
-                    <li>session_id:str</li>
-                </ui>
-            </div>
         </div>
         <div>
             <h1>/api/go</h1>
-            <div>Method: Post</div>
-            <div>Content-Type: application/json</div>
-            <div>
-                <div>Request Body:</div>
-                <ul>
-                    <li>session_id:str</li>
-                    <li>url:str</li>
-                </ul>
-            </div>
-            <div>
-                <div>Response Body:</div>
-                <ui>
-                    <li>session_id:str</li>
-                    <li>url:str</li>
-                    <li>title:str</li>
-                    <li>elements:tree</li>
-                    <li>responses:list</li>
-                </ui>
-            </div>
+        </div>
+        <div>
+            <h1>/api/view</h1>
         </div>
         <div>
             <h1>/api/download</h1>
-            <div>Method: Post</div>
-            <div>Content-Type: application/json</div>
-            <div>
-                <div>Request Body:</div>
-                <ul>
-                    <li>request_id:str</li>
-                    <li>tab_id:int</li>
-                    <li>request_id:str</li>
-                </ul>
-            </div>
-            <div>
-                <div>Response Body:</div>
-                <ui>
-                <ul>
-                    <li>session_id:str</li>
-                    <li>tab_id:int</li>
-                    <li>request_id:str</li>
-                    <li>data:{}</li>
-                </ul>
-                </ui>
-            </div>
         </div>
         <div>
             <h1>/api/click</h1>
-            <div>Method: Post</div>
-            <div>Content-Type: application/json</div>
-            <div>
-                <div>Request Body:</div>
-                <ul>
-                    <li>session_id:str</li>
-                    <li>element_id:str</li>
-                </div>
-            </div>
-            <div>
-                <div>Response Body:</div>
-                <ui>
-                    <li>session_id:str</li>
-                    <li>element_id:str</li>
-                    <li>text:str</li>
-                </ui>
-            </div>
         </div>
         <div>
             <h1>/api/input</h1>
-            <div>Method: Post</div>
-            <div>Content-Type: application/json</div>
-            <div>
-                <div>Request Body:</div>
-                <ui>
-                    <li>session_id:str</li>
-                    <li>element_id:str</li>
-                    <li>keys:str</li>
-                </ui>
-            </div>
-            <div>
-                <div>Response Body:</div>
-                <ui>
-                    <li>session_id:str</li>
-                    <li>element_id:str</li>
-                    <li>keys:str</li>
-                </ui>
-            </div>
         </div>
         <div>
             <h1>/api/destroy</h1>
-            <div>Method: Post</div>
-            <div>Content-Type: application/json</div>
-            <div>
-                <div>Request Body:</div>
-                <ui>
-                    <li>session_id:str</li>
-                </ui>
-            </div>
-            <div>
-                <div>Response Body:</div>
-                <ui>
-                    <li>session_id:str</li>
-                </ui>
-            </div>
         </div>
     </body>
 </html>
@@ -535,7 +438,6 @@ async def api_start(response: Response, data: Optional[Dict[str, Any]], session_
     if session_id:
         response.headers['X-Session-Id'] = session_id
         rsp[r'session_id'] = session_id
-    logger.info(r'api start:' + str(rsp))
     return rsp
 
 @app.post(r'/api/go')
@@ -556,7 +458,22 @@ async def api_go(data: Dict[str, Any], session_id: str = Header(None, alias="X-S
                     break
             if tab_id is not None:
                 rsp[r'responses'] = await fun_http_data(session_id, tab_id)
-    logger.info(r'api go:' + str(rsp))
+    return rsp
+
+@app.post(r'/api/view')
+@require_params('session_id')
+async def api_view(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
+    rsp = {}
+    rsp[r'elements'] = fun_uia_data(session_id)
+    tabs = await fun_query_tabs(session_id)
+    if tabs:
+        tab_id = None
+        for tab in tabs:
+            if tab[r'active']:
+                tab_id = tab[r'id']
+                break
+        if tab_id is not None:
+            rsp[r'responses'] = await fun_http_data(session_id, tab_id)
     return rsp
 
 @app.post(r'/api/download')
@@ -566,7 +483,6 @@ async def api_download(data: Dict[str, Any], session_id: str = Header(None, alia
     request_id = data.get('request_id')
     data_rsp = await fun_session_download(session_id, tab_id, request_id)
     rsp = {r'tab_id': tab_id, r'request_id': request_id, r'data': data_rsp}
-    logger.info(r'api download:' + str(rsp))
     return rsp
 
 @app.post(r'/api/click')
@@ -575,7 +491,6 @@ async def api_click(data: Dict[str, Any], session_id: str = Header(None, alias="
     element_id = data.get('element_id')
     text = await fun_session_click(session_id, element_id)
     rsp = {r'element_id': element_id, r'text': text}
-    logger.info(r'api click:' + str(rsp))
     return rsp
 
 @app.post(r'/api/input')
@@ -585,7 +500,6 @@ async def api_input(data: Dict[str, Any], session_id: str = Header(None, alias="
     keys = data.get('keys')
     keys_rsp = await fun_session_input(session_id, element_id, keys)
     rsp = {r'element_id': element_id, r'keys': keys_rsp}
-    logger.info(r'api input:' + str(rsp))
     return rsp
 
 @app.post(r'/api/destroy')
@@ -594,7 +508,6 @@ async def api_destroy(response: Response, data: Dict[str, Any], session_id: str 
     session_id = await fun_session_destroy(session_id)
     response.headers['X-Session-Id'] = session_id
     rsp = {r'session_id': session_id}
-    logger.info(r'api destroy:' + str(rsp))
     return rsp
 
 # ==========  ========== websocket ==========  ==========
@@ -610,7 +523,7 @@ ws_html = '''
     <body>
         <h1>WebSocket Test</h1>
         <div>
-            <input type='text' id='urlText' autocomplete='off' value='ws://localhost:8000/ws/ext'/>
+            <input type='text' id='urlText' autocomplete='off' value='ws://localhost:8020/ws/ext'/>
             <button id='connButton' onClick='connect()'>Connect</button>
         </div>
         <div>
@@ -850,7 +763,8 @@ def uvicorn_run():
         app,
         host=r'127.0.0.1',  # 只监听本地
         port=8020,
-        log_level=r'info'
+        log_level=r'info',
+        access_log=True
     )
 
 # ==========  ========== main ==========  ==========
