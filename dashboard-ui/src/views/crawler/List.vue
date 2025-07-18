@@ -1,24 +1,83 @@
 <template>
   <a-card :bordered="false">
     <div class="table-operator">
-      <a-button type="primary" @click="refreshData">
-        <template #icon><reload-outlined /></template>
-        Refresh
+      <a-input v-model:value="keyword" placeholder="UUID/IP/Host Name/Alias" style="width: 280px; margin-right: 8px;" @pressEnter="handleSearch" />
+      <a-button type="primary" @click="handleSearch">
+        <template #icon><search-outlined /></template>
+        Search
+      </a-button>
+      <a-button @click="handleReset" style="margin-left: 8px;">Reset</a-button>
+      <a-button type="danger" :disabled="!selectedRowKeys.length" @click="handleBatchDelete" style="margin-left: 8px;">
+        <template #icon><delete-outlined /></template>
+        Delete Selected
       </a-button>
     </div>
-
+  
     <a-table
       :columns="columns"
       :data-source="data"
       :pagination="pagination"
       :loading="loading"
       @change="handleTableChange"
+      :row-selection="rowSelection"
+      :row-key="'id'"
     >
+      <template #headerCell="{ column }">
+        <template v-if="column.key === 'ip'">
+          <div>
+            <div>External IP</div>
+            <div>Internal IP</div>
+          </div>
+        </template>
+        <template v-else-if="column.key === 'host'">
+          <div>
+            <div>Host Name</div>
+            <div>Alias</div>
+          </div>
+        </template>
+        <template v-else-if="column.key === 'os'">
+          <div>
+            <div>OS</div>
+            <div>Agent</div>
+          </div>
+        </template>
+        <template v-else-if="column.key === 'usage'">
+          <div>
+            <div>CPU Usage</div>
+            <div>Memory Usage</div>
+          </div>
+        </template>
+        <template v-else-if="column.key === 'status'">
+          <div>
+            <div>Status</div>
+            <div>Last Heartbeat</div>
+          </div>
+        </template>
+      </template>
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'status'">
-          <a-tag :color="record.status === 10 ? 'green' : record.status === 20 ? 'red' : record.status === 30 ? 'default' : 'default'">
-            {{ crawlerStatus[record.status] }}
-          </a-tag>
+          <div>
+            <a-tag :color="record.status === 10 ? 'green' : record.status === 20 ? 'red' : record.status === 30 ? 'default' : 'default'">
+              {{ crawlerStatus[record.status] }}
+            </a-tag>
+            <div>{{ record.last_heartbeat }}</div>
+          </div>
+        </template>
+        <template v-else-if="column.key === 'ip'">
+          <div>{{ record.external_ip }}</div>
+          <div>{{ record.internal_ip }}</div>
+        </template>
+        <template v-else-if="column.key === 'host'">
+          <div>{{ record.host_name }}</div>
+          <div>{{ record.alias }}</div>
+        </template>
+        <template v-else-if="column.key === 'os'">
+          <div>{{ record.os }}</div>
+          <div>{{ record.agent }}</div>
+        </template>
+        <template v-else-if="column.key === 'usage'">
+          <div>{{ record.cpu_usage }}%</div>
+          <div>{{ record.memory_usage }}%</div>
         </template>
         <template v-else-if="column.key === 'action'">
           <a-space>
@@ -31,47 +90,48 @@
         </template>
       </template>
     </a-table>
-
-    <a-modal
-      v-model:visible="visible"
-      title="Edit Crawler"
-      @ok="handleOk"
-    >
-      <a-form
-        :model="formState"
-        :label-col="{ span: 8 }"
-        :wrapper-col="{ span: 14 }"
-      >
-        <a-form-item label="Host Name">
-          <a-input v-model:value="formState.host_name" disabled />
-        </a-form-item>
-        <a-form-item label="Alias" name="alias" :rules="[{ required: true, message: 'Please enter alias!' }]">
-          <a-input v-model:value="formState.alias" />
-        </a-form-item>
-        <a-form-item label="Max Browser Count" name="max_browser_count">
-          <a-input-number v-model:value="formState.max_browser_count" :min="1" :max="100" style="width: 100%" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
   </a-card>
+
+  <a-modal
+    v-model:visible="visible"
+    title="Edit Crawler"
+    @ok="handleOk"
+  >
+    <a-form
+      :model="formState"
+      :label-col="{ span: 8 }"
+      :wrapper-col="{ span: 14 }"
+    >
+      <a-form-item label="Host Name">
+        <a-input v-model:value="formState.host_name" disabled />
+      </a-form-item>
+      <a-form-item label="Alias" name="alias" :rules="[{ required: true, message: 'Please enter alias!' }]">
+        <a-input v-model:value="formState.alias" />
+      </a-form-item>
+      <a-form-item label="Max Browser Count" name="max_browser_count">
+        <a-input-number v-model:value="formState.max_browser_count" :min="1" :max="100" style="width: 100%" />
+      </a-form-item>
+    </a-form>
+  </a-modal>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { ReloadOutlined } from '@ant-design/icons-vue'
-import { getCrawlerList, modifyCrawler } from '@/api/crawler'
+import { ref, onMounted, computed } from 'vue'
+import { ReloadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { getCrawlerList, modifyCrawler, deleteCrawlers } from '@/api/crawler'
 import { crawlerStatus } from '@/data/dict'
+
+const keyword = ref('')
 
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
-  { title: 'Host Name', dataIndex: 'host_name', key: 'host_name' },
-  { title: 'Alias', dataIndex: 'alias', key: 'alias' },
-  { title: 'IP', dataIndex: 'ip', key: 'ip' },
-  { title: 'OS', dataIndex: 'os', key: 'os' },
-  { title: 'Agent', dataIndex: 'agent', key: 'agent' },
-  { title: 'Max Browser Count', dataIndex: 'max_browser_count', key: 'max_browser_count' },
-  { title: 'Last Heartbeat', dataIndex: 'last_heartbeat', key: 'last_heartbeat' },
+  { title: 'UUID', dataIndex: 'uuid', key: 'uuid' },
+  { title: 'IP', key: 'ip' },
+  { title: 'Host', key: 'host' },
+  { title: 'OS', key: 'os' },
+  { title: 'Usage', key: 'usage' },
   { title: 'Status', key: 'status' },
+  { title: 'Max Browser Count', dataIndex: 'max_browser_count', key: 'max_browser_count' },
   { title: 'Action', key: 'action' }
 ]
 
@@ -94,30 +154,22 @@ const pagination = ref({
   showTotal: total => `Total ${total} items`
 })
 
-const fetchData = async () => {
-  loading.value = true
-  try {
-    const res = await getCrawlerList({
-      pagination: {
-        page_num: pagination.value.current,
-        page_size: pagination.value.pageSize
-      }
-    })
-    data.value = res.rows
-    pagination.value.total = res.total
-  } finally {
-    loading.value = false
+const selectedRowKeys = ref([])
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys) => {
+    selectedRowKeys.value = keys
   }
-}
+}))
 
-const refreshData = () => {
+const handleSearch = () => {
   pagination.value.current = 1
   fetchData()
 }
 
-const handleTableChange = (pag) => {
-  pagination.value.current = pag.current
-  pagination.value.pageSize = pag.pageSize
+const handleReset = () => {
+  keyword.value = ''
+  pagination.value.current = 1
   fetchData()
 }
 
@@ -150,6 +202,40 @@ const handleOk = async () => {
     visible.value = false
   } catch (error) {
     console.error('Failed to modify crawler:', error)
+  }
+}
+
+const handleBatchDelete = async () => {
+  if (!selectedRowKeys.value.length) return
+  try {
+    await deleteCrawlers({ ids: selectedRowKeys.value })
+    selectedRowKeys.value = []
+    fetchData()
+  } catch (error) {
+    console.error('Failed to delete crawlers:', error)
+  }
+}
+
+const handleTableChange = (pag) => {
+  pagination.value.current = pag.current
+  pagination.value.pageSize = pag.pageSize
+  fetchData()
+}
+
+const fetchData = async () => {
+  loading.value = true
+  try {
+    const res = await getCrawlerList({
+      keyword: keyword.value,
+      pagination: {
+        page_num: pagination.value.current,
+        page_size: pagination.value.pageSize
+      }
+    })
+    data.value = res.rows
+    pagination.value.total = res.total
+  } finally {
+    loading.value = false
   }
 }
 

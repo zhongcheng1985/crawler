@@ -7,3 +7,11 @@ export function getLogList(data) {
     data
   })
 }
+
+export function deleteLogs(data) {
+  return request({
+    url: '/api/log/delete',
+    method: 'post',
+    data
+  })
+}

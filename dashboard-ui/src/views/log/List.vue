@@ -1,13 +1,17 @@
 <template>
   <a-card :bordered="false">
     <div class="table-operator">
-      <a-input v-model:value="searchKeyword" placeholder="host/ip/alias/session/api" style="width:200px;margin-right:8px;" @pressEnter="handleSearch" />
+      <a-input v-model:value="keyword" placeholder="UUID/IP/Host Name/Alias/Session/Url" style="width:280px;margin-right:8px;" @pressEnter="handleSearch" />
       <a-button type="primary" @click="handleSearch">
         <template #icon><search-outlined /></template>
         Search
       </a-button>
       <a-button @click="handleReset" style="margin-left: 8px;">
         Reset
+      </a-button>
+      <a-button type="danger" :disabled="!selectedRowKeys.length" @click="handleBatchDelete" style="margin-left: 8px;">
+        <template #icon><delete-outlined /></template>
+        Delete Selected
       </a-button>
     </div>
 
@@ -17,9 +21,11 @@
       :pagination="pagination"
       :loading="loading"
       @change="handleTableChange"
+      :row-selection="rowSelection"
+      row-key="id"
     >
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'server'">
+        <template v-if="column.key === 'crawler'">
           <a-tooltip placement="top" :overlay-inner-style="{ whiteSpace: 'pre-line' }">
             <template #title>
               <div v-html="getServerTooltip(record)"></div>
@@ -41,16 +47,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
+import { DeleteOutlined } from '@ant-design/icons-vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
-import { getLogList } from '@/api/crawler'
+import { getLogList } from '@/api/log'
+import { deleteLogs } from '@/api/log'
 import { useRoute } from 'vue-router'
 
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
-  { title: 'Server', key: 'server' },
-  { title: 'Session', dataIndex: 'session_id', key: 'session_id' },
-  { title: 'API', dataIndex: 'api', key: 'api' },
+  { title: 'Crawler', key: 'crawler' },
+  { title: 'Session', dataIndex: 'uuid', key: 'uuid' },
+  { title: 'URL', dataIndex: 'url', key: 'url' },
   { title: 'Request Time', dataIndex: 'request_time', key: 'request_time' },
   { title: 'Response Time', dataIndex: 'response_time', key: 'response_time' },
   { title: 'Status Code', dataIndex: 'status_code', key: 'status_code' }
@@ -58,9 +66,10 @@ const columns = [
 
 const data = ref([])
 const loading = ref(false)
-const searchKeyword = ref('')
+const keyword = ref('')
 const route = useRoute()
 const crawlerId = ref(route.query.crawler_id || '')
+const sessionId = ref(route.query.session_id || '')
 
 const pagination = ref({
   current: 1,
@@ -71,6 +80,14 @@ const pagination = ref({
   showTotal: total => `Total ${total} items`
 })
 
+const selectedRowKeys = ref([])
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys) => {
+    selectedRowKeys.value = keys
+  }
+}))
+
 const getStatusCodeColor = (code) => {
   if (code >= 200 && code < 300) return 'green' // Success
   if (code >= 300 && code < 400) return 'blue'  // Redirection
@@ -80,9 +97,7 @@ const getStatusCodeColor = (code) => {
 }
 
 const getServerDisplay = (record) => {
-  if (record.host_name && record.host_name.trim()) return record.host_name
-  if (record.alias && record.alias.trim()) return record.alias
-  if (record.ip && record.ip.trim()) return record.ip
+  if (record.crawler_uuid && record.crawler_uuid.trim()) return record.crawler_uuid
   return ''
 }
 
@@ -97,8 +112,12 @@ const getServerTooltip = (record) => {
     tooltipParts.push(`Alias: ${record.alias}`)
   }
   
-  if (record.ip && record.ip.trim()) {
-    tooltipParts.push(`IP: ${record.ip}`)
+  if (record.external_ip && record.external_ip.trim()) {
+    tooltipParts.push(`External IP: ${record.external_ip}`)
+  }
+
+  if (record.internal_ip && record.internal_ip.trim()) {
+    tooltipParts.push(`Internal IP: ${record.internal_ip}`)
   }
   
   return tooltipParts.length > 0 ? tooltipParts.join('<br>') : 'No server information'
@@ -112,10 +131,10 @@ const fetchData = async () => {
         page_num: pagination.value.current,
         page_size: pagination.value.pageSize
       },
-      keyword: searchKeyword.value,
-      crawler_id: crawlerId.value
+      keyword: keyword.value,
+      crawler_id: crawlerId.value,
+      session_id: sessionId.value
     }
-    // Filter out empty parameters
     Object.keys(params).forEach(key => {
       if (params[key] === '' || params[key] === null || params[key] === undefined) {
         delete params[key]
@@ -148,7 +167,7 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  searchKeyword.value = ''
+  keyword.value = ''
   pagination.value.current = 1
   fetchData()
 }
@@ -159,13 +178,28 @@ const handleTableChange = (pag) => {
   fetchData()
 }
 
+const handleBatchDelete = async () => {
+  if (!selectedRowKeys.value.length) return
+  try {
+    await deleteLogs({ ids: selectedRowKeys.value })
+    selectedRowKeys.value = []
+    fetchData()
+  } catch (error) {
+    console.error('Failed to delete logs:', error)
+  }
+}
+
 onMounted(() => {
   fetchData()
 })
 
-// Watch for route changes to update crawlerId and refetch data
+// Watch for route changes to update crawlerId and sessionId and refetch data
 watch(() => route.query.crawler_id, (newId) => {
   crawlerId.value = newId
+  fetchData()
+})
+watch(() => route.query.session_id, (newId) => {
+  sessionId.value = newId
   fetchData()
 })
 </script>

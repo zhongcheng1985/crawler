@@ -1,7 +1,7 @@
 #
 # pip install fastapi uvicorn[standard] pydantic mysql-connector-python
 #
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Body
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -49,17 +49,18 @@ class SessionGridRequest(BaseModel):
     pagination: Optional[Pagination] = None
     keyword: Optional[str] = None
     crawler_id: Optional[int] = None
-    session_id: Optional[int] = None
 
 class LogGridRequest(BaseModel):
     pagination: Optional[Pagination] = None
     keyword: Optional[str] = None
-    crawler_id: Optional[int] = None
     session_id: Optional[int] = None
 
-class BaseResponse(BaseModel):
+class PageResponse(BaseModel):
     total: int
     rows: List[dict]
+
+class DeleteRequest(BaseModel):
+    ids: List[int]
 
 # Helper functions
 def format_datetime(dt: Optional[datetime]) -> Optional[str]:
@@ -79,24 +80,26 @@ def apply_pagination(query: str, params: list, pagination: Optional[Pagination] 
     return query, params
 
 # API Endpoints
-@app.post("/crawler/grid", response_model=BaseResponse)
+@app.post("/crawler/grid", response_model=PageResponse)
 def crawler_grid(request: CrawlerGridRequest, db=Depends(get_db_connection)):
     cursor = None
     try:
         cursor = db.cursor(dictionary=True)
         
-        # 修正表别名使用 - 确保与JOIN语句中的别名一致
+        # /crawler/grid
         query = """
-        SELECT ci.id, cstat.host_name, ci.alias,ci.max_browser_count, cstat.ip, cstat.os, cstat.agent, 
-               cstat.last_heartbeat, cstat.status
+        SELECT ci.id, ci.uuid, ci.host_name, ci.external_ip, ci.internal_ip,
+               ci.os, ci.agent, ci.last_heartbeat, ci.status, ci.cpu_usage,
+               ci.memory_usage, ci.create_time, ci.update_time,
+               cset.alias, cset.max_browser_count
         FROM crawler_info ci
-        JOIN crawler_status cstat ON ci.id = cstat.crawler_id
+        LEFT JOIN crawler_setting cset ON cset.crawler_id = ci.id
         """
         
         count_query = """
         SELECT COUNT(*) as total
         FROM crawler_info ci
-        JOIN crawler_status cstat ON ci.id = cstat.crawler_id
+        LEFT JOIN crawler_setting cset ON cset.crawler_id = ci.id
         """
         
         # Build WHERE clause for crawler grid
@@ -104,8 +107,8 @@ def crawler_grid(request: CrawlerGridRequest, db=Depends(get_db_connection)):
         params = []
         if request.keyword:
             like_value = f"%{request.keyword}%"
-            conditions.append("(ci.alias LIKE %s OR cstat.host_name LIKE %s OR cstat.ip LIKE %s)")
-            params.extend([like_value, like_value, like_value])
+            conditions.append("(ci.uuid LIKE %s OR ci.host_name LIKE %s OR ci.internal_ip LIKE %s OR ci.external_ip LIKE %s OR cset.alias LIKE %s)")
+            params.extend([like_value, like_value, like_value, like_value, like_value])
         
         if conditions:
             where_clause = " AND ".join(conditions)
@@ -153,7 +156,7 @@ def modify_crawler(request: ModifyCrawlerRequest, db=Depends(get_db_connection))
             raise HTTPException(status_code=400, detail="No fields to update")
         
         update_query = f"""
-        UPDATE crawler_info 
+        UPDATE crawler_setting 
         SET {", ".join(update_fields)}
         WHERE id = %s
         """
@@ -164,13 +167,11 @@ def modify_crawler(request: ModifyCrawlerRequest, db=Depends(get_db_connection))
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Crawler not found")
         
-        # Get updated crawler info
+        # Get updated crawler_setting only
         select_query = """
-        SELECT ci.id, cs.host_name, ci.alias, cs.ip, cs.os, cs.agent, 
-               cs.last_heartbeat, cs.status
-        FROM crawler_info ci
-        JOIN crawler_status cs ON ci.id = cs.crawler_id
-        WHERE ci.id = %s
+        SELECT id, crawler_id, alias, max_browser_count, create_time, update_time
+        FROM crawler_setting
+        WHERE id = %s
         """
         cursor.execute(select_query, (request.id,))
         result = cursor.fetchone()
@@ -184,9 +185,6 @@ def modify_crawler(request: ModifyCrawlerRequest, db=Depends(get_db_connection))
         result['last_heartbeat'] = format_datetime(result['last_heartbeat'])
         
         return result
-    except HTTPException:
-        db.rollback()
-        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -194,7 +192,27 @@ def modify_crawler(request: ModifyCrawlerRequest, db=Depends(get_db_connection))
         if cursor:
             cursor.close()
 
-@app.post("/session/grid", response_model=BaseResponse)
+@app.post("/crawler/delete")
+def delete_crawlers(req: DeleteRequest, db=Depends(get_db_connection)):
+    exists_ids = None
+    if req.ids!=None and len(req.ids)>0:
+        cursor = None
+        try:
+            db.start_transaction()
+            cursor = db.cursor(dictionary=True)
+            cursor.execute("SELECT id FROM crawler_info WHERE id IN (%s)" % ','.join(['%s']*len(req.ids)), req.ids)
+            exists_ids = [row['id'] for row in cursor.fetchall()]
+            cursor.execute("DELETE FROM crawler_info WHERE id IN (%s)" % ','.join(['%s']*len(exists_ids)), exists_ids)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            if cursor:
+                cursor.close()
+    return {"ids": exists_ids}
+
+@app.post("/session/grid", response_model=PageResponse)
 def session_grid(request: SessionGridRequest, db=Depends(get_db_connection)):
     cursor = None
     try:
@@ -202,34 +220,32 @@ def session_grid(request: SessionGridRequest, db=Depends(get_db_connection)):
         
         # Base query
         query = """
-        SELECT csess.id, ci.alias, cstat.host_name, cstat.ip, csess.session_id, 
-               csess.url, csess.init_time, csess.destroy_time
-        FROM crawler_session csess
-        JOIN crawler_info ci ON csess.crawler_id = ci.id
-        JOIN crawler_status cstat ON csess.crawler_id = cstat.crawler_id
+        SELECT cs.id, cs.uuid, cs.init_time, cs.url, cs.destroy_time, cs.create_time, cs.update_time,
+               ci.uuid as crawler_uuid, ci.host_name, ci.internal_ip, ci.external_ip,
+               cset.alias
+        FROM crawler_session cs
+        LEFT JOIN crawler_info ci ON cs.crawler_id = ci.id
+        LEFT JOIN crawler_setting cset ON cs.crawler_id = cset.id
         """
         
         # Count query
         count_query = """
         SELECT COUNT(*) as total
-        FROM crawler_session csess
-        JOIN crawler_info ci ON csess.crawler_id = ci.id
-        JOIN crawler_status cstat ON csess.crawler_id = cstat.crawler_id
+        FROM crawler_session cs
+        LEFT JOIN crawler_info ci ON cs.crawler_id = ci.id
+        LEFT JOIN crawler_setting cset ON cs.crawler_id = cset.id
         """
         
         # Build WHERE clause for session grid
         conditions = []
         params = []
+        if request.crawler_id:
+            conditions.append("cs.crawler_id = %s")
+            params.append(request.crawler_id)
         if request.keyword:
             like_value = f"%{request.keyword}%"
-            conditions.append("(ci.alias LIKE %s OR cstat.host_name LIKE %s OR cstat.ip LIKE %s OR csess.session_id LIKE %s)")
-            params.extend([like_value, like_value, like_value, like_value])
-        if request.crawler_id:
-            conditions.append("csess.crawler_id = %s")
-            params.append(request.crawler_id)
-        if request.session_id:
-            conditions.append("csess.id = %s")
-            params.append(request.session_id)
+            conditions.append("(cs.uuid LIKE %s OR ci.uuid LIKE %s OR ci.host_name LIKE %s OR ci.internal_ip LIKE %s OR ci.external_ip LIKE %s OR cset.alias LIKE %s)")
+            params.extend([like_value, like_value, like_value, like_value, like_value, like_value])
         
         if conditions:
             where_clause = " AND ".join(conditions)
@@ -260,7 +276,27 @@ def session_grid(request: SessionGridRequest, db=Depends(get_db_connection)):
         if cursor:
             cursor.close()
 
-@app.post("/log/grid", response_model=BaseResponse)
+@app.post("/session/delete")
+def delete_sessions(req: DeleteRequest, db=Depends(get_db_connection)):
+    exists_ids = None
+    if req.ids!=None and len(req.ids)>0:
+        cursor = None
+        try:
+            db.start_transaction()
+            cursor = db.cursor(dictionary=True)
+            cursor.execute("SELECT id FROM crawler_session WHERE id IN (%s)" % ','.join(['%s']*len(req.ids)), req.ids)
+            exists_ids = [row['id'] for row in cursor.fetchall()]
+            cursor.execute("DELETE FROM crawler_session WHERE id IN (%s)" % ','.join(['%s']*len(exists_ids)), exists_ids)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            if cursor:
+                cursor.close()
+    return {"ids": exists_ids}
+
+@app.post("/log/grid", response_model=PageResponse)
 def log_grid(request: LogGridRequest, db=Depends(get_db_connection)):
     cursor = None
     try:
@@ -268,36 +304,33 @@ def log_grid(request: LogGridRequest, db=Depends(get_db_connection)):
         
         # Base query
         query = """
-        SELECT al.id, ci.alias, cstat.host_name, cstat.ip, csess.session_id, 
-               al.api, al.request_time, al.response_time, al.status_code
-        FROM api_log al
-        JOIN crawler_session csess ON al.crawler_session_id = csess.id
-        JOIN crawler_info ci ON csess.crawler_id = ci.id
-        JOIN crawler_status cstat ON csess.crawler_id = cstat.crawler_id
+        SELECT cl.id, cl.url, cl.request_time, cl.response_time, cl.status_code, cl.create_time, cl.update_time,
+               cs.uuid, ci.uuid as crawler_uuid, ci.host_name, ci.external_ip, ci.internal_ip, cset.alias
+        FROM crawler_log cl
+        LEFT JOIN crawler_session cs ON cl.crawler_session_id = cs.id
+        LEFT JOIN crawler_info ci ON cs.crawler_id = ci.id
+        LEFT JOIN crawler_setting cset ON cs.crawler_id = cset.id
         """
         
         # Count query
         count_query = """
         SELECT COUNT(*) as total
-        FROM api_log al
-        JOIN crawler_session csess ON al.crawler_session_id = csess.id
-        JOIN crawler_info ci ON csess.crawler_id = ci.id
-        JOIN crawler_status cstat ON csess.crawler_id = cstat.crawler_id
+        FROM crawler_log cl
+        LEFT JOIN crawler_session cs ON cl.crawler_session_id = cs.id
+        LEFT JOIN crawler_info ci ON cs.crawler_id = ci.id
+        LEFT JOIN crawler_setting cset ON cs.crawler_id = cset.id
         """
         
         # Build WHERE clause for log grid
         conditions = []
         params = []
+        if request.session_id:
+            conditions.append("cl.crawler_session_id = %s")
+            params.append(request.session_id)
         if request.keyword:
             like_value = f"%{request.keyword}%"
-            conditions.append("(ci.alias LIKE %s OR cstat.host_name LIKE %s OR cstat.ip LIKE %s OR csess.session_id LIKE %s OR al.api LIKE %s)")
-            params.extend([like_value, like_value, like_value, like_value, like_value])
-        if request.crawler_id:
-            conditions.append("csess.crawler_id = %s")
-            params.append(request.crawler_id)
-        if request.session_id:
-            conditions.append("al.crawler_session_id = %s")
-            params.append(request.session_id)
+            conditions.append("(cl.url LIKE %s OR cs.uuid LIKE %s OR ci.uuid LIKE %s OR ci.host_name LIKE %s OR ci.external_ip LIKE %s OR ci.internal_ip LIKE %s OR cset.alias LIKE %s)")
+            params.extend([like_value, like_value, like_value, like_value, like_value, like_value, like_value])
         
         if conditions:
             where_clause = " AND ".join(conditions)
@@ -327,6 +360,26 @@ def log_grid(request: LogGridRequest, db=Depends(get_db_connection)):
     finally:
         if cursor:
             cursor.close()
+
+@app.post("/log/delete")
+def delete_logs(req: DeleteRequest, db=Depends(get_db_connection)):
+    exists_ids = None
+    if req.ids is not None and len(req.ids) > 0:
+        cursor = None
+        try:
+            db.start_transaction()
+            cursor = db.cursor(dictionary=True)
+            cursor.execute("SELECT id FROM crawler_log WHERE id IN (%s)" % ','.join(['%s']*len(req.ids)), req.ids)
+            exists_ids = [row['id'] for row in cursor.fetchall()]
+            cursor.execute("DELETE FROM crawler_log WHERE id IN (%s)" % ','.join(['%s']*len(exists_ids)), exists_ids)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            if cursor:
+                cursor.close()
+    return {"ids": exists_ids}
 
 if __name__ == "__main__":
     import uvicorn

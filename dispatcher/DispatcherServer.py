@@ -63,24 +63,19 @@ async def read_json_message(reader: asyncio.StreamReader) -> Optional[Dict[str, 
             char = await reader.read(1)
             if not char:
                 return None
-            
             buffer += char
-            
             # Check if we have the delimiter
             if buffer.endswith(MESSAGE_DELIMITER):
                 # Remove delimiter and decode
                 json_data = buffer[:-len(MESSAGE_DELIMITER)]
                 try:
                     message = json.loads(json_data.decode('utf-8', errors='ignore'))
-                    
                     # Log the received message
                     logging.info(f"[SERVER][JSON] Received: {json.dumps(message, ensure_ascii=False)}")
-                    
                     return message
                 except json.JSONDecodeError as e:
                     logging.error(f"[SERVER][JSON] Error parsing JSON: {e}")
                     return None
-                    
     except Exception as e:
         logging.error(f"[SERVER][JSON] Error reading JSON message: {e}")
         return None
@@ -112,25 +107,34 @@ async def write_json_message(writer: asyncio.StreamWriter, msg_id: str, msg_type
 class ClientInfo:
     reader: asyncio.StreamReader
     writer: asyncio.StreamWriter
-    ip: str
-    port: int
     connect_time: datetime.datetime
     disconnect_time: Optional[datetime.datetime] = None
     max_browser_count: int = 5
+    # Fields corresponding to crawler_info table
+    uuid: Optional[str] = None
+    host_name: Optional[str] = None
+    internal_ip: Optional[str] = None
+    external_ip: Optional[str] = None
+    os: Optional[str] = None
+    agent: Optional[str] = None
+    last_heartbeat: Optional[datetime.datetime] = None
+    status: int = 10  # 10:online, 20:offline, 30:shutdown
+    cpu_usage: Optional[float] = None
+    memory_usage: Optional[float] = None
 
 @dataclass
 class SessionInfo:
-    session_id: str
-    client_ip: str
+    uuid: str
+    client_uuid: str
     init_time: datetime.datetime
     url: Optional[str] = None
     destroy_time: Optional[datetime.datetime] = None
-    id: Optional[int] = None
 
 @dataclass
-class RequestInfo:
-    session: SessionInfo
-    api: Optional[str]
+class LogInfo:
+    uuid: str
+    session_uuid: str
+    url: Optional[str]
     request_time: datetime.datetime
     response_time: Optional[datetime.datetime] = None
     status_code: Optional[int] = None
@@ -143,11 +147,11 @@ clients_lock = asyncio.Lock()
 sessions: Dict[Optional[str], SessionInfo] = {}
 sessions_lock = asyncio.Lock()
 
-requests: List[RequestInfo] = []
-requests_lock = asyncio.Lock()
+logs: List[LogInfo] = []
+logs_lock = asyncio.Lock()
 
 # Store pending HTTP requests waiting for response
-pending_requests: Dict[str, Tuple[asyncio.StreamWriter, RequestInfo]] = {}
+pending_requests: Dict[str, Tuple[asyncio.StreamWriter, LogInfo]] = {}
 pending_requests_lock = asyncio.Lock()
 
 #==========  HTTP UTILITY FUNCTIONS  ==========
@@ -174,6 +178,33 @@ async def _close_writer(writer: asyncio.StreamWriter) -> None:
 
 #==========  CLIENT CONNECTION HANDLER  ==========
 async def handle_client(clint_reader: asyncio.StreamReader,  client_writer: asyncio.StreamWriter) -> None:
+    # Immediately read and check MESSAGE_DELIMITER
+    try:
+        delimiter = await clint_reader.readexactly(len(MESSAGE_DELIMITER))
+        if delimiter != MESSAGE_DELIMITER:
+            logging.warning(f"[SERVER][CLIENT] Invalid initial delimiter, closing connection.")
+            await _close_writer(client_writer)
+            return
+    except Exception as e:
+        logging.error(f"[SERVER][CLIENT] Error reading initial delimiter: {e}")
+        await _close_writer(client_writer)
+        return
+    
+    # Read heartbeat message after MESSAGE_DELIMITER
+    try:
+        heartbeat_msg = await read_json_message(clint_reader)
+        if not heartbeat_msg or heartbeat_msg.get("type") != "dispatcher.heartbeat":
+            logging.warning(f"[SERVER][CLIENT] Invalid or missing heartbeat message, closing connection.")
+            await _close_writer(client_writer)
+            return
+        
+        heartbeat_data = heartbeat_msg.get("data", {})
+        logging.info(f"[SERVER][CLIENT] Received heartbeat: {json.dumps(heartbeat_data, ensure_ascii=False)}")
+    except Exception as e:
+        logging.error(f"[SERVER][CLIENT] Error reading heartbeat message: {e}")
+        await _close_writer(client_writer)
+        return
+    
     #
     sock = client_writer.get_extra_info('socket')
     if sock is not None:
@@ -182,10 +213,23 @@ async def handle_client(clint_reader: asyncio.StreamReader,  client_writer: asyn
     addr = client_writer.get_extra_info('peername')
     ip, port = addr if addr else ('unknown', 0)
     connect_time = datetime.datetime.now()
-    client_info = ClientInfo(clint_reader, client_writer, ip, port, connect_time)
+    client_info = ClientInfo(clint_reader, client_writer, connect_time)
+    
+    # Update client info with heartbeat data
+    client_uuid = heartbeat_data.get("uuid")
+    client_info.uuid = client_uuid
+    client_info.os = heartbeat_data.get("os")
+    client_info.agent = heartbeat_data.get("agent")
+    client_info.host_name = heartbeat_data.get("host_name")
+    client_info.internal_ip = heartbeat_data.get("ip")
+    client_info.external_ip = ip
+    client_info.cpu_usage = heartbeat_data.get("cpu_usage")
+    client_info.memory_usage = heartbeat_data.get("memory_usage")
+    client_info.last_heartbeat = connect_time
+    
     logging.info(f"[SERVER][CLIENT] Client connected: {ip}:{port} at {connect_time}")
     async with clients_lock:
-        clients[ip] = client_info
+        clients[client_uuid] = client_info
     #
     try:
         while True:
@@ -208,8 +252,8 @@ async def handle_client(clint_reader: asyncio.StreamReader,  client_writer: asyn
                                 response_body_b64 = request_msg.get("data", "")
                                 import base64
                                 response_body = base64.b64decode(response_body_b64)
-                                # Update request status (try to extract status code from response)
-                                async with requests_lock:
+                                                        # Update log status (try to extract status code from response)
+                                async with logs_lock:
                                     request_obj.response_time = datetime.datetime.now()
                                     # Try to extract status code from binary response
                                     try:
@@ -219,6 +263,14 @@ async def handle_client(clint_reader: asyncio.StreamReader,  client_writer: asyn
                                     except (IndexError, ValueError):
                                         request_obj.status_code = 200  # Default status code
                                 
+                                # --- New logic: update session destroy_time if api is /api/destroy ---
+                                if request_obj.url == "/api/destroy":
+                                    async with sessions_lock:
+                                        session = sessions.get(request_obj.session_uuid)
+                                        if session and session.destroy_time is None:
+                                            session.destroy_time = datetime.datetime.now()
+                                            logging.info(f"[SERVER][SESSION] Set destroy_time for session {session.uuid} due to /api/destroy response.")
+                                # ---------------------------------------------------------------
                                 # Check if writer is still open before writing
                                 if not http_writer.is_closing():
                                     # Send binary HTTP response back to client
@@ -239,6 +291,21 @@ async def handle_client(clint_reader: asyncio.StreamReader,  client_writer: asyn
                             logging.warning(f"[SERVER][HTTP] Invalid http_writer or request_obj for response: {response_msg_id}")
                     else:
                         logging.warning(f"[SERVER][HTTP] Received response for unknown request: {response_msg_id}")
+            elif request_msg.get("type") == "dispatcher.heartbeat":
+                # Handle heartbeat message from client and update ClientInfo
+                heartbeat_data = request_msg.get("data", {})
+                now = datetime.datetime.now()
+                # Update client_info fields with new heartbeat data
+                client_info.os = heartbeat_data.get("os")
+                client_info.agent = heartbeat_data.get("agent")
+                client_info.host_name = heartbeat_data.get("host_name")
+                client_info.internal_ip = heartbeat_data.get("ip")
+                # external_ip is set at connect time and not updated here
+                client_info.cpu_usage = heartbeat_data.get("cpu_usage")
+                client_info.memory_usage = heartbeat_data.get("memory_usage")
+                client_info.last_heartbeat = now
+                # Log the heartbeat update
+                logging.info(f"[SERVER][CLIENT] Heartbeat updated for client {client_info.uuid} at {now}: {json.dumps(heartbeat_data, ensure_ascii=False)}")
             else:
                 logging.warning(f"[SERVER][JSON] Unknown message type: {request_msg.get('type')}")
     except Exception as e:
@@ -300,19 +367,19 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
             if url==r'/api/start' and not x_session_id :
                 client = None
                 async with clients_lock:
-                    # Count sessions per client IP
+                    # Count sessions per client UUID
                     client_session_counts = {}
                     async with sessions_lock:
                         for session in sessions.values():
                             if session.destroy_time is None:  # Only count active sessions
-                                client_ip = session.client_ip
-                                client_session_counts[client_ip] = client_session_counts.get(client_ip, 0) + 1
+                                client_uuid = session.client_uuid
+                                client_session_counts[client_uuid] = client_session_counts.get(client_uuid, 0) + 1
                     
                     # Find available client that doesn't exceed max_browser_count
                     min_session_count = float('inf')
-                    for c in clients.values():
+                    for client_uuid, c in clients.items():
                         if c.disconnect_time is None:
-                            current_count = client_session_counts.get(c.ip, 0)
+                            current_count = client_session_counts.get(client_uuid, 0)
                             if current_count < c.max_browser_count and current_count < min_session_count:
                                 min_session_count = current_count
                                 client = c
@@ -333,10 +400,9 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
                 header_lines.insert(insert_pos, f"X-Session-Id: {x_session_id}\r\n".encode())
                 async with sessions_lock:
                     session = SessionInfo(
-                        session_id=x_session_id,
-                        client_ip=client.ip,
+                        uuid=x_session_id,
+                        client_uuid=client_uuid,  # Use the UUID from the clients dict key
                         init_time=datetime.datetime.now(),
-                        url=url
                     )
                     sessions[x_session_id] = session
             else:
@@ -347,24 +413,17 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
                     await _send_response(http_writer, b'HTTP/1.1 440 Session Expired\r\nContent-Length: 16\r\n\r\nSession Expired')
                     await _close_writer(http_writer)
                     return
+                
+            if url==r'/api/go' :
+                body = json.loads(body_data.decode('utf-8', errors='ignore'))
+                session.url=body.get('url')
 
             # Get client and send JSON request
-            client = clients.get(session.client_ip)
+            client = clients.get(session.client_uuid)
             if client is None:
                 await _send_response(http_writer, b'HTTP/1.1 503 Service Unavailable\r\nContent-Length: 19\r\n\r\nNo client available')
                 await _close_writer(http_writer)
                 return
-
-            # Record request
-            request_obj = RequestInfo(
-                session=session,
-                api=url,
-                request_time=datetime.datetime.now(),
-                response_time=None,
-                status_code=None
-            )
-            async with requests_lock:
-                requests.append(request_obj)
 
             # Create binary HTTP request data
             request_buffer = b""
@@ -380,6 +439,18 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
             # Send JSON request to client
             msg_id = str(uuid.uuid4())
             await write_json_message(client.writer, msg_id, "http.request", request_data)
+            
+            # Record request
+            request_obj = LogInfo(
+                uuid=msg_id,  # Use the msg_id as the uuid
+                session_uuid=session.uuid,
+                url=url,
+                request_time=datetime.datetime.now(),
+                response_time=None,
+                status_code=None
+            )
+            async with logs_lock:
+                logs.append(request_obj)
             
             # Store request info for later response handling
             async with pending_requests_lock:
@@ -400,131 +471,141 @@ async def log_status_periodically(interval: int = 10) -> None:
             # Update client max_browser_count from database and update status
             async with clients_lock:
                 for client in clients.values():
-                    logging.info(f"[SERVER][DB] Processing client: ip={client.ip}, port={client.port}, connect_time={client.connect_time}, disconnect_time={client.disconnect_time}, max_browser_count={client.max_browser_count}")
+                    logging.info(f"[SERVER][DB] Processing client: uuid={client.uuid}, connect_time={client.connect_time}, disconnect_time={client.disconnect_time}, max_browser_count={client.max_browser_count}")
                     try:
                         connection = get_db_connection()
                         if connection is None:
                             continue
                         cursor = connection.cursor()
                         
-                        # Get or create crawler_info record
+                        # Try to update existing crawler_info by UUID
+                        status = 10 if client.disconnect_time is None else 20  # 10: online, 20: offline
                         cursor.execute(
-                            "SELECT cs.crawler_id, ci.max_browser_count FROM crawler_status cs LEFT JOIN crawler_info ci ON cs.crawler_id = ci.id WHERE cs.ip = %s",
-                            (client.ip,)
+                            "UPDATE crawler_info SET host_name = %s, internal_ip = %s, external_ip = %s, os = %s, agent = %s, last_heartbeat = %s, status = %s, cpu_usage = %s, memory_usage = %s, update_time = %s WHERE uuid = %s",
+                            (client.host_name, client.internal_ip, client.external_ip, client.os, client.agent, client.last_heartbeat, status, client.cpu_usage, client.memory_usage, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), client.uuid)
                         )
-                        result = cursor.fetchone()
                         
-                        if result:
-                            crawler_id = int(result[0])  # type: ignore
-                            client.max_browser_count = int(result[1])  # type: ignore
-                        else:
-                            # Create new crawler_info
+                        if cursor.rowcount > 0:
+                            # Record was updated, get max_browser_count from crawler_setting
                             cursor.execute(
-                                "INSERT INTO crawler_info (max_browser_count) VALUES (%s)",
-                                (client.max_browser_count,)  # Default max_browser_count
+                                "SELECT max_browser_count FROM crawler_setting WHERE crawler_id = (SELECT id FROM crawler_info WHERE uuid = %s)",
+                                (client.uuid,)
+                            )
+                            setting_result = cursor.fetchone()
+                            if setting_result and setting_result[0] is not None:
+                                try:
+                                    client.max_browser_count = int(setting_result[0])  # type: ignore
+                                    logging.info(f"[SERVER][DB] Updated max_browser_count to {client.max_browser_count} for client {client.uuid}")
+                                except (ValueError, TypeError):
+                                    logging.warning(f"[SERVER][DB] Invalid max_browser_count value for client {client.uuid}: {setting_result[0]}")
+                            
+                            connection.commit()
+                            logging.info(f"[SERVER][DB] Updated existing crawler_info with UUID: {client.uuid}")
+                        else:
+                            # No record was updated, create new crawler_info
+                            cursor.execute(
+                                "INSERT INTO crawler_info (uuid, host_name, internal_ip, external_ip, os, agent, last_heartbeat, status, cpu_usage, memory_usage, create_time) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                                (client.uuid, client.host_name, client.internal_ip, client.external_ip, client.os, client.agent, client.last_heartbeat, status, client.cpu_usage, client.memory_usage, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
                             )
                             connection.commit()
                             crawler_id = cursor.lastrowid
                             
-                            # Immediately insert crawler_status record for new crawler_info
-                            status = 10 if client.disconnect_time is None else 20  # 10: online, 20: offline
-                            cursor.execute("""
-                                INSERT INTO crawler_status (crawler_id, ip, last_heartbeat, status)
-                                VALUES (%s, %s, %s, %s)
-                            """, (crawler_id, client.ip, datetime.datetime.now(), status))
+                            # Create crawler_setting record for new crawler_info
+                            cursor.execute(
+                                "INSERT INTO crawler_setting (crawler_id, max_browser_count, create_time) VALUES (%s, %s, %s)",
+                                (crawler_id, client.max_browser_count, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                            )
                             connection.commit()
-                        
-                        # Update crawler_status for existing records
-                        status = 10 if client.disconnect_time is None else 20  # 10: online, 20: offline
-                        
-                        # Update existing record
-                        cursor.execute("""
-                            UPDATE crawler_status 
-                            SET ip = %s, last_heartbeat = %s, status = %s, update_time = CURRENT_TIMESTAMP
-                            WHERE crawler_id = %s
-                        """, (client.ip, datetime.datetime.now(), status, crawler_id))
-                        
-                        connection.commit()
+                            logging.info(f"[SERVER][DB] Created new crawler_info with ID: {crawler_id}")
                         
                         cursor.close()
                         connection.close()
                         
                     except Exception as e:
-                        logging.error(f"[SERVER][DB] Error updating client {client.ip}:{client.port} in database: {e}")
+                        logging.error(f"[SERVER][DB] Error updating client {client.uuid} in database: {e}")
                         try:
                             if 'cursor' in locals():
                                 cursor.close()
                             if 'connection' in locals() and connection:
                                 connection.close()
-                        except:
-                            pass
+                        except Exception as cleanup_error:
+                            logging.error(f"[SERVER][DB] Error during cleanup: {cleanup_error}")
             
             # Update sessions in database
             async with sessions_lock:
-                # Create a copy of the values to avoid modification during iteration
-                sessions_to_process = list(sessions.values())
-                for session in sessions_to_process:
-                    logging.info(f"[SERVER][DB] Processing session: id={session.id}, session_id={session.session_id}, client_ip={session.client_ip}, init_time={session.init_time}, url={session.url}, destroy_time={session.destroy_time}")
+                # Create a copy of the items to avoid modification during iteration
+                for session in sessions.values():
+                    logging.info(f"[SERVER][DB] Processing session: uuid={session.uuid}, client_uuid={session.client_uuid}, init_time={session.init_time}, url={session.url}, destroy_time={session.destroy_time}")
                     try:
                         connection = get_db_connection()
                         if connection is None:
                             continue
                         cursor = connection.cursor()
                         
-                        if session.id is None:
-                            # Session doesn't exist in database, get crawler_id and insert
-                            cursor.execute(
-                                "SELECT cs.crawler_id FROM crawler_status cs WHERE cs.ip = %s",
-                                (session.client_ip,)
-                            )
-                            result = cursor.fetchone()
+                        # First check if crawler_info exists for this session's client_uuid
+                        cursor.execute(
+                            "SELECT id FROM crawler_info WHERE uuid = %s",
+                            (session.client_uuid,)
+                        )
+                        crawler_result = cursor.fetchone()
+                        
+                        if not crawler_result:
+                            # crawler_info doesn't exist, skip this session
+                            logging.warning(f"[SERVER][DB] Skipping session {session.uuid}: crawler_info not found for client_uuid {session.client_uuid}")
+                            cursor.close()
+                            connection.close()
+                            continue
+                        
+                        crawler_id = int(crawler_result[0])  # type: ignore
+                        
+                        # Try to update existing session by UUID
+                        cursor.execute(
+                            "UPDATE crawler_session SET crawler_id = %s, init_time = %s, url = %s, destroy_time = %s, update_time = %s WHERE uuid = %s",
+                            (crawler_id, session.init_time, session.url, session.destroy_time, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), session.uuid)
+                        )
+                        
+                        if cursor.rowcount > 0:
+                            # Session was updated
+                            connection.commit()
+                            logging.info(f"[SERVER][DB] Updated session with UUID: {session.uuid}")
                             
-                            if result:
-                                crawler_id = int(result[0])  # type: ignore
-                                # Insert new session
-                                cursor.execute("""
-                                    INSERT INTO crawler_session (crawler_id, session_id, init_time, url)
-                                    VALUES (%s, %s, %s, %s)
-                                """, (crawler_id, session.session_id, session.init_time, session.url))
-                                connection.commit()
-                                # Update the session ID in memory
-                                session.id = cursor.lastrowid
-                                logging.info(f"[SERVER][DB] Created new session with ID: {session.id}")
+                            # Remove destroyed session from memory
+                            if session.destroy_time is not None:
+                                sessions.pop(session.uuid, None)
+                                logging.info(f"[SERVER][DB] Removed destroyed session from memory: UUID {session.uuid}")
                         else:
-                            # Session exists, update destroy_time if needed
-                            if session.destroy_time is not None:
-                                cursor.execute("""
-                                    UPDATE crawler_session 
-                                    SET destroy_time = %s, update_time = CURRENT_TIMESTAMP
-                                    WHERE id = %s
-                                """, (session.destroy_time, session.id))
-                                connection.commit()
-                                logging.info(f"[SERVER][DB] Updated session with ID: {session.id}")
+                            # Session doesn't exist in database, insert new session
+                            cursor.execute(
+                                "INSERT INTO crawler_session (crawler_id, uuid, init_time, url, destroy_time, create_time) VALUES (%s, %s, %s, %s, %s, %s)",
+                                (crawler_id, session.uuid, session.init_time, session.url, session.destroy_time, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                            )
+                            connection.commit()
+                            logging.info(f"[SERVER][DB] Created new session with UUID: {session.uuid}")
                             
-                            # If session is destroyed, remove from memory
+                            # Remove destroyed session from memory
                             if session.destroy_time is not None:
-                                sessions.pop(session.session_id, None)
-                                logging.info(f"[SERVER][DB] Removed destroyed session from memory: ID {session.id}")
+                                sessions.pop(session.uuid, None)
+                                logging.info(f"[SERVER][DB] Removed destroyed session from memory: UUID {session.uuid}")
                         
                         cursor.close()
                         connection.close()
                         
                     except Exception as e:
-                        logging.error(f"[SERVER][DB] Error updating session {session.session_id} in database: {e}")
+                        logging.error(f"[SERVER][DB] Error updating session {session.uuid} in database: {e}")
                         try:
                             if 'cursor' in locals():
                                 cursor.close()
                             if 'connection' in locals() and connection:
                                 connection.close()
-                        except:
-                            pass
+                        except Exception as cleanup_error:
+                            logging.error(f"[SERVER][DB] Error during cleanup: {cleanup_error}")
 
-                        # Update API logs in database
-            async with requests_lock:
+            # Update API logs in database
+            async with logs_lock:
                 # Create a copy of the list to avoid modification during iteration
-                requests_to_process = requests.copy()
-                for request in requests_to_process:
-                    logging.info(f"[SERVER][DB] Processing request: id={request.id}, session_id={request.session.session_id}, api={request.api}, request_time={request.request_time}, response_time={request.response_time}, status_code={request.status_code}")
+                logs_to_process = logs.copy()
+                for request in logs_to_process:
+                    logging.info(f"[SERVER][DB] Processing request: uuid={request.uuid}, id={request.id}, session={request.session_uuid}, api={request.url}, request_time={request.request_time}, response_time={request.response_time}, status_code={request.status_code}")
                     try:
                         connection = get_db_connection()
                         if connection is None:
@@ -533,51 +614,56 @@ async def log_status_periodically(interval: int = 10) -> None:
                         
                         # Get crawler_session_id for this request
                         cursor.execute(
-                            "SELECT id FROM crawler_session WHERE session_id = %s",
-                            (request.session.session_id,)
+                            "SELECT id FROM crawler_session WHERE uuid = %s",
+                            (request.session_uuid,)
                         )
                         session_result = cursor.fetchone()
                         
-                        if session_result:
-                            session_id = int(session_result[0])  # type: ignore
-                            
-                            if request.id is None:
-                                # Insert new API log
-                                cursor.execute("""
-                                    INSERT INTO api_log (crawler_session_id, api, request_time, response_time, status_code)
-                                    VALUES (%s, %s, %s, %s, %s)
-                                """, (session_id, request.api, request.request_time, request.response_time, request.status_code))
-                                connection.commit()
-                                # Update the request ID in memory
-                                request.id = cursor.lastrowid
-                                logging.info(f"[SERVER][DB] Created new API log with ID: {request.id}")
-                            else:
-                                # Update existing API log by ID
-                                cursor.execute("""
-                                    UPDATE api_log 
-                                    SET response_time = %s, status_code = %s, update_time = CURRENT_TIMESTAMP
-                                    WHERE id = %s
-                                """, (request.response_time, request.status_code, request.id))
-                                connection.commit()
-                                logging.info(f"[SERVER][DB] Updated API log with ID: {request.id}")
-                            
-                            # If request is complete (has response_time), remove from memory
-                            if request.response_time is not None:
-                                requests.remove(request)
-                                logging.info(f"[SERVER][DB] Removed completed request from memory: ID {request.id}")
+                        if not session_result:
+                            # crawler_session doesn't exist, skip this request
+                            logging.warning(f"[SERVER][DB] Skipping request {request.uuid}: crawler_session not found for session_uuid {request.session_uuid}")
+                            cursor.close()
+                            connection.close()
+                            continue
+                        
+                        session_id = int(session_result[0])  # type: ignore
+                        
+                        if request.id is None:
+                            # Insert new API log
+                            cursor.execute(
+                                "INSERT INTO crawler_log (crawler_session_id, url, request_time, response_time, status_code, create_time) VALUES (%s, %s, %s, %s, %s, %s)",
+                                (session_id, request.url, request.request_time, request.response_time, request.status_code, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                            )
+                            connection.commit()
+                            # Save the ID for next update
+                            request.id = cursor.lastrowid
+                            logging.info(f"[SERVER][DB] Created new API log with ID: {request.id}")
+                        else:
+                            # Update existing API log by ID
+                            cursor.execute(
+                                "UPDATE crawler_log SET response_time = %s, status_code = %s, update_time = %s WHERE id = %s",
+                                (request.response_time, request.status_code, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), request.id)
+                            )
+                            connection.commit()
+                            logging.info(f"[SERVER][DB] Updated API log with ID: {request.id}")
+                        
+                        # If request is complete (has response_time), remove from memory
+                        if request.response_time is not None:
+                            logs.remove(request)
+                            logging.info(f"[SERVER][DB] Removed completed request from memory: ID {request.id}")
                         
                         cursor.close()
                         connection.close()
-
+                        
                     except Exception as e:
-                        logging.error(f"[SERVER][DB] Error updating API log for request {request.api} in database: {e}")
+                        logging.error(f"[SERVER][DB] Error updating API log for request {request.uuid} in database: {e}")
                         try:
                             if 'cursor' in locals():
                                 cursor.close()
                             if 'connection' in locals() and connection:
                                 connection.close()
-                        except:
-                            pass
+                        except Exception as cleanup_error:
+                            logging.error(f"[SERVER][DB] Error during cleanup: {cleanup_error}")
 
         except Exception as e:
             logging.error(f"[SERVER][DB] Error in log_status_periodically: {e}")
@@ -591,7 +677,7 @@ async def main() -> None:
     
     async with http_server, client_server:
         logging.info(f"[SERVER][MAIN] Server started. HTTP(0.0.0.0:{HTTP_PORT}), Client(0.0.0.0:{CLIENT_PORT})")
-        await asyncio.gather(http_server.serve_forever(), client_server.serve_forever(),log_status_periodically(10))
+        await asyncio.gather(http_server.serve_forever(), client_server.serve_forever(),log_status_periodically())
 
 if __name__ == '__main__':
-    asyncio.run(main()) 
+    asyncio.run(main())

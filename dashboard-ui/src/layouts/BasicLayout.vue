@@ -1,5 +1,5 @@
 <template>
-  <a-layout class="layout">
+  <a-layout style="width: 100vwl; height: 100vh;  display: flex;  flex-direction: column;">
     <!-- Top Navigation Bar -->
     <a-layout-header class="header">
       <div class="logo-area" :style="{ width: collapsed ? '80px' : '200px' }">
@@ -69,21 +69,19 @@
             <router-link to="/log"><file-text-outlined /><span v-if="!collapsed">Log</span></router-link>
           </a-menu-item>
         </a-menu>
+        <div class="sider-footer">©2025</div>
       </a-layout-sider>
 
       <!-- Content Area -->
-      <a-layout style="padding: 0 24px 24px; height: 100%; display: flex; flex-direction: column;">
-        <a-breadcrumb style="margin: 16px 0">
+      <a-layout style="flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0;">
+        <a-breadcrumb style="flex: 0 0 auto; padding: 10px 10px">
           <a-breadcrumb-item>Home</a-breadcrumb-item>
           <a-breadcrumb-item>{{ currentRouteName }}</a-breadcrumb-item>
         </a-breadcrumb>
-        <a-layout-content class="content" style="flex: 1 1 0; min-height: 0;">
+        <a-layout-content style="flex:1 1 auto;">
           <router-view />
         </a-layout-content>
         <!-- Footer -->
-        <a-layout-footer class="footer">
-          Crawler Dashboard ©2025
-        </a-layout-footer>
       </a-layout>
     </a-layout>
   </a-layout>
@@ -127,18 +125,12 @@ watch(() => route.path, (newPath) => {
 </script>
 
 <style scoped>
-.layout {
-  min-height: 100vh;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
 
 .header {
   display: flex;
   padding: 0;
   background: white;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  box-shadow: 0 1px 4px rgba(64, 64, 64, 0.08);
   z-index: 1;
   position: relative;
 }
@@ -156,7 +148,7 @@ watch(() => route.path, (newPath) => {
 .logo {
   display: flex;
   align-items: center;
-  height: 64px;
+  height: 50px;
   padding: 0 16px;
 }
 
@@ -186,13 +178,12 @@ watch(() => route.path, (newPath) => {
 .left-menu {
   display: flex;
   align-items: center;
-  padding-left: 16px;
 }
 
 .right-menu {
   display: flex;
   align-items: center;
-  padding-right: 24px;
+  padding-right: 16px;
 }
 
 .collapse-btn {
@@ -216,10 +207,8 @@ watch(() => route.path, (newPath) => {
 }
 
 .content {
-  padding: 24px;
   background: #fff;
-  flex: 1 1 0;
-  min-height: 0;
+  overflow: hidden;
 }
 
 .footer {
@@ -227,5 +216,15 @@ watch(() => route.path, (newPath) => {
   padding: 16px 0;
   color: rgba(0, 0, 0, 0.65);
   background: #fff;
+}
+
+.sider-footer {
+  color: rgba(255,255,255,0.65);
+  text-align: center;
+  padding: 16px 0;
+  font-size: 14px;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
 }
 </style>

@@ -1,13 +1,17 @@
 <template>
   <a-card :bordered="false">
     <div class="table-operator">
-      <a-input v-model:value="searchKeyword" placeholder="host/ip/alias/session" style="width:200px;margin-right:8px;" @pressEnter="handleSearch" />
+      <a-input v-model:value="keyword" placeholder="UUID/IP/Host Name/Alias/Session" style="width:280px;margin-right:8px;" @pressEnter="handleSearch" />
       <a-button type="primary" @click="handleSearch">
         <template #icon><search-outlined /></template>
         Search
       </a-button>
       <a-button @click="handleReset" style="margin-left: 8px;">
         Reset
+      </a-button>
+      <a-button type="danger" :disabled="!selectedRowKeys.length" @click="handleBatchDelete" style="margin-left: 8px;">
+        <template #icon><delete-outlined /></template>
+        Delete Selected
       </a-button>
     </div>
 
@@ -17,9 +21,11 @@
       :pagination="pagination"
       :loading="loading"
       @change="handleTableChange"
+      :row-selection="rowSelection"
+      row-key="id"
     >
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'server'">
+        <template v-if="column.key === 'crawler'">
           <a-tooltip placement="top" :overlay-inner-style="{ whiteSpace: 'pre-line' }">
             <template #title>
               <div v-html="getServerTooltip(record)"></div>
@@ -27,8 +33,11 @@
             <span>{{ getServerDisplay(record) }}</span>
           </a-tooltip>
         </template>
-        <template v-else-if="column.key === 'crawler_server'">
-          {{ getCrawlerName(record.crawler_id) }}
+        <template v-else-if="column.key === 'action'">
+          <router-link :to="{ path: '/log', query: { session_id: record.id } }">Log</router-link>
+        </template>
+        <template v-else>
+          {{ record[column.dataIndex] }}
         </template>
       </template>
     </a-table>
@@ -36,18 +45,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
+import { DeleteOutlined } from '@ant-design/icons-vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
 import { getSessions, getCrawlerList } from '@/api/crawler'
+import { deleteSessions } from '@/api/session'
 import { useRoute } from 'vue-router'
 
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id' },
-  { title: 'Server', key: 'server' },
-  { title: 'Session', dataIndex: 'session_id', key: 'session_id' },
+  { title: 'Crawler', dataIndex: 'crawler', key: 'crawler' },
+  { title: 'Session', dataIndex: 'uuid', key: 'uuid' },
   { title: 'URL', dataIndex: 'url', key: 'url' },
   { title: 'Init Time', dataIndex: 'init_time', key: 'init_time' },
-  { title: 'Destroy Time', dataIndex: 'destroy_time', key: 'destroy_time' }
+  { title: 'Destroy Time', dataIndex: 'destroy_time', key: 'destroy_time' },
+  { title: 'Action', key: 'action' }
 ]
 
 const data = ref([])
@@ -62,19 +74,20 @@ const pagination = ref({
   pageSizeOptions: ['10', '20', '50'],
   showTotal: total => `Total ${total} items`
 })
-const searchKeyword = ref('')
+const keyword = ref('')
 const route = useRoute()
 const crawlerId = ref(route.query.crawler_id || '')
 
-const getCrawlerName = (id) => {
-  const crawler = crawlers.value.find(c => c.id === id)
-  return crawler ? `${crawler.alias} (${crawler.host_name})` : 'Unknown'
-}
+const selectedRowKeys = ref([])
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys) => {
+    selectedRowKeys.value = keys
+  }
+}))
 
 const getServerDisplay = (record) => {
-  if (record.host_name && record.host_name.trim()) return record.host_name
-  if (record.alias && record.alias.trim()) return record.alias
-  if (record.ip && record.ip.trim()) return record.ip
+  if (record.crawler_uuid && record.crawler_uuid.trim()) return record.crawler_uuid
   return ''
 }
 
@@ -89,8 +102,12 @@ const getServerTooltip = (record) => {
     tooltipParts.push(`Alias: ${record.alias}`)
   }
   
-  if (record.ip && record.ip.trim()) {
-    tooltipParts.push(`IP: ${record.ip}`)
+  if (record.external_ip && record.external_ip.trim()) {
+    tooltipParts.push(`External IP: ${record.external_ip}`)
+  }
+
+  if (record.internal_ip && record.internal_ip.trim()) {
+    tooltipParts.push(`Internal IP: ${record.internal_ip}`)
   }
   
   return tooltipParts.length > 0 ? tooltipParts.join('<br>') : 'No server information'
@@ -104,16 +121,14 @@ const fetchCrawlers = async () => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // Build parameter object
     const params = {
       pagination: {
         page_num: pagination.value.current,
         page_size: pagination.value.pageSize
       },
-      keyword: searchKeyword.value,
+      keyword: keyword.value,
       crawler_id: crawlerId.value
     }
-    // Filter out empty parameters
     Object.keys(params).forEach(key => {
       if (params[key] === '' || params[key] === null || params[key] === undefined) {
         delete params[key]
@@ -144,7 +159,7 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  searchKeyword.value = ''
+  keyword.value = ''
   pagination.value.current = 1
   fetchData()
 }
@@ -153,6 +168,17 @@ const handleTableChange = (pag) => {
   pagination.value.current = pag.current
   pagination.value.pageSize = pag.pageSize
   fetchData()
+}
+
+const handleBatchDelete = async () => {
+  if (!selectedRowKeys.value.length) return
+  try {
+    await deleteSessions({ ids: selectedRowKeys.value })
+    selectedRowKeys.value = []
+    fetchData()
+  } catch (error) {
+    console.error('Failed to delete sessions:', error)
+  }
 }
 
 onMounted(() => {

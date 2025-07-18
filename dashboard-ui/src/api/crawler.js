@@ -24,9 +24,17 @@ export function getSessions(data) {
   })
 }
 
-export function getLogList(data) {
+export function getCrawlerRequestList(data) {
   return request({
-    url: '/api/log/grid',
+    url: '/api/crawler_request/grid',
+    method: 'post',
+    data
+  })
+}
+
+export function deleteCrawlers(data) {
+  return request({
+    url: '/api/crawler/delete',
     method: 'post',
     data
   })

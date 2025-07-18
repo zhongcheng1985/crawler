@@ -2,34 +2,73 @@
 USE `dashboard`;
 
 -- Insert sample data into crawler_info
-INSERT INTO `crawler_info` (`alias`, `max_browser_count`) VALUES
-('Crawler Node 1', 5),
-('Crawler Node 2', 3),
-('Test Crawler', 10),
-('Production Crawler', 8),
-('Backup Crawler Node', 2);
+INSERT INTO `crawler_info` (`id`, `uuid`, `host_name`, `internal_ip`, `external_ip`, `os`, `agent`, `last_heartbeat`, `status`, `cpu_usage`, `memory_usage`) VALUES
+(1, 'uuid-1', 'host-1', '10.0.0.1', '192.168.1.1', 'Linux', 'Agent/1.0', '2023-06-15 10:00:00', 10, 10.1, 100.1),
+(2, 'uuid-2', 'host-2', '10.0.0.2', '192.168.1.2', 'Windows', 'Agent/1.1', '2023-06-15 10:10:00', 20, 11.1, 101.1),
+(3, 'uuid-3', 'host-3', '10.0.0.3', '192.168.1.3', 'Linux', 'Agent/1.2', '2023-06-15 10:20:00', 10, 12.1, 102.1),
+(4, 'uuid-4', 'host-4', '10.0.0.4', '192.168.1.4', 'Linux', 'Agent/1.3', '2023-06-15 10:30:00', 10, 13.1, 103.1),
+(5, 'uuid-5', 'host-5', '10.0.0.5', '192.168.1.5', 'Windows', 'Agent/1.4', '2023-06-15 10:40:00', 30, 14.1, 104.1),
+(6, 'uuid-6', 'host-6', '10.0.0.6', '192.168.1.6', 'Linux', 'Agent/1.5', '2023-06-15 10:50:00', 10, 15.1, 105.1),
+(7, 'uuid-7', 'host-7', '10.0.0.7', '192.168.1.7', 'Linux', 'Agent/1.6', '2023-06-15 11:00:00', 10, 16.1, 106.1),
+(8, 'uuid-8', 'host-8', '10.0.0.8', '192.168.1.8', 'Linux', 'Agent/1.7', '2023-06-15 11:10:00', 10, 17.1, 107.1),
+(9, 'uuid-9', 'host-9', '10.0.0.9', '192.168.1.9', 'Linux', 'Agent/1.8', '2023-06-15 11:20:00', 10, 18.1, 108.1),
+(10, 'uuid-10', 'host-10', '10.0.0.10', '192.168.1.10', 'Linux', 'Agent/1.9', '2023-06-15 11:30:00', 10, 19.1, 109.1),
+(11, 'uuid-11', 'host-11', '10.0.0.11', '192.168.1.11', 'Linux', 'Agent/2.0', '2023-06-15 11:40:00', 10, 20.1, 110.1),
+(12, 'uuid-12', 'host-12', '10.0.0.12', '192.168.1.12', 'Linux', 'Agent/2.1', '2023-06-15 11:50:00', 10, 21.1, 111.1),
+(13, 'uuid-13', 'host-13', '10.0.0.13', '192.168.1.13', 'Linux', 'Agent/2.2', '2023-06-15 12:00:00', 10, 22.1, 112.1),
+(14, 'uuid-14', 'host-14', '10.0.0.14', '192.168.1.14', 'Linux', 'Agent/2.3', '2023-06-15 12:10:00', 10, 23.1, 113.1),
+(15, 'uuid-15', 'host-15', '10.0.0.15', '192.168.1.15', 'Linux', 'Agent/2.4', '2023-06-15 12:20:00', 10, 24.1, 114.1);
 
--- Insert sample data into crawler_status
-INSERT INTO `crawler_status` (`crawler_id`, `host_name`, `ip`, `os`, `agent`, `last_heartbeat`, `status`) VALUES
-(1, 'node1-server', '192.168.1.101', 'Linux', 'pAgent/1.0.0', '2023-06-15 10:00:00', 10),
-(2, 'node2-server', '192.168.1.102', 'Windows', 'pAgent/1.0.0', '2023-06-15 10:01:23', 20),
-(3, 'test-node', '10.0.0.101', 'Linux', 'pAgent/1.0.0', '2023-06-15 09:45:30', 10),
-(4, 'prod-node1', '172.16.0.10', 'Linux', 'pAgent/1.0.0', '2023-06-15 11:20:15', 10),
-(5, 'backup-node', '192.168.2.100', 'Windows', 'pAgent/1.0.0', '2023-06-14 22:30:45', 30);
+-- Insert sample data into crawler_setting
+INSERT INTO `crawler_setting` (`id`, `crawler_id`, `alias`, `max_browser_count`) VALUES
+(1, 1, 'Alias-1', 5),
+(2, 2, 'Alias-2', 6),
+(3, 3, 'Alias-3', 7),
+(4, 4, 'Alias-4', 8),
+(5, 5, 'Alias-5', 9),
+(6, 6, 'Alias-6', 10),
+(7, 7, 'Alias-7', 11),
+(8, 8, 'Alias-8', 12),
+(9, 9, 'Alias-9', 13),
+(10, 10, 'Alias-10', 14),
+(11, 11, 'Alias-11', 15),
+(12, 12, 'Alias-12', 16),
+(13, 13, 'Alias-13', 17),
+(14, 14, 'Alias-14', 18),
+(15, 15, 'Alias-15', 19);
 
 -- Insert sample data into crawler_session
-INSERT INTO `crawler_session` (`crawler_id`, `session`, `init_time`, `url`, `title`, `destroy_time`) VALUES
-(1, 'sess_abc123', '2023-06-15 09:30:00', 'https://example.com/page1', 'Example Page 1', NULL),
-(1, 'sess_def456', '2023-06-15 10:15:00', 'https://example.com/page2', 'Example Page 2', '2023-06-15 11:00:00'),
-(2, 'sess_ghi789', '2023-06-15 08:45:00', 'https://test.com/home', 'Test Homepage', '2023-06-15 09:30:00'),
-(3, 'sess_jkl012', '2023-06-15 10:00:00', 'https://api.example.com/data', 'API Data Endpoint', NULL),
-(4, 'sess_mno345', '2023-06-15 11:00:00', 'https://prod.example.com', 'Production Site', NULL);
+INSERT INTO `crawler_session` (`id`, `crawler_id`, `session`, `init_time`, `url`, `title`, `destroy_time`) VALUES
+(1, 1, 'sess-1', '2023-06-15 09:00:00', 'https://example.com/1', 'Title 1', NULL),
+(2, 2, 'sess-2', '2023-06-15 09:10:00', 'https://example.com/2', 'Title 2', NULL),
+(3, 3, 'sess-3', '2023-06-15 09:20:00', 'https://example.com/3', 'Title 3', NULL),
+(4, 4, 'sess-4', '2023-06-15 09:30:00', 'https://example.com/4', 'Title 4', NULL),
+(5, 5, 'sess-5', '2023-06-15 09:40:00', 'https://example.com/5', 'Title 5', NULL),
+(6, 6, 'sess-6', '2023-06-15 09:50:00', 'https://example.com/6', 'Title 6', NULL),
+(7, 7, 'sess-7', '2023-06-15 10:00:00', 'https://example.com/7', 'Title 7', NULL),
+(8, 8, 'sess-8', '2023-06-15 10:10:00', 'https://example.com/8', 'Title 8', NULL),
+(9, 9, 'sess-9', '2023-06-15 10:20:00', 'https://example.com/9', 'Title 9', NULL),
+(10, 10, 'sess-10', '2023-06-15 10:30:00', 'https://example.com/10', 'Title 10', NULL),
+(11, 11, 'sess-11', '2023-06-15 10:40:00', 'https://example.com/11', 'Title 11', NULL),
+(12, 12, 'sess-12', '2023-06-15 10:50:00', 'https://example.com/12', 'Title 12', NULL),
+(13, 13, 'sess-13', '2023-06-15 11:00:00', 'https://example.com/13', 'Title 13', NULL),
+(14, 14, 'sess-14', '2023-06-15 11:10:00', 'https://example.com/14', 'Title 14', NULL),
+(15, 15, 'sess-15', '2023-06-15 11:20:00', 'https://example.com/15', 'Title 15', NULL);
 
--- Insert sample data into api_log
-INSERT INTO `api_log` (`crawler_session_id`, `api`, `request_time`, `response_time`, `status_code`) VALUES
-(1, '/api/data/get', '2023-06-15 09:35:00', '2023-06-15 09:35:02', 200),
-(1, '/api/data/post', '2023-06-15 09:40:00', '2023-06-15 09:40:01', 201),
-(2, '/api/user/info', '2023-06-15 10:20:00', '2023-06-15 10:20:03', 200),
-(3, '/api/test/run', '2023-06-15 08:50:00', '2023-06-15 08:50:45', 500),
-(4, '/api/data/fetch', '2023-06-15 10:05:00', NULL, NULL),
-(5, '/api/prod/metrics', '2023-06-15 11:05:00', '2023-06-15 11:05:10', 200);
+-- Insert sample data into crawler_log
+INSERT INTO `crawler_log` (`id`, `crawler_session_id`, `url`, `request_time`, `response_time`, `status_code`) VALUES
+(1, 1, '/api/1', '2023-06-15 09:01:00', '2023-06-15 09:01:10', 200),
+(2, 2, '/api/2', '2023-06-15 09:11:00', '2023-06-15 09:11:10', 201),
+(3, 3, '/api/3', '2023-06-15 09:21:00', '2023-06-15 09:21:10', 200),
+(4, 4, '/api/4', '2023-06-15 09:31:00', '2023-06-15 09:31:10', 404),
+(5, 5, '/api/5', '2023-06-15 09:41:00', '2023-06-15 09:41:10', 500),
+(6, 6, '/api/6', '2023-06-15 09:51:00', '2023-06-15 09:51:10', 200),
+(7, 7, '/api/7', '2023-06-15 10:01:00', '2023-06-15 10:01:10', 200),
+(8, 8, '/api/8', '2023-06-15 10:11:00', '2023-06-15 10:11:10', 200),
+(9, 9, '/api/9', '2023-06-15 10:21:00', '2023-06-15 10:21:10', 200),
+(10, 10, '/api/10', '2023-06-15 10:31:00', '2023-06-15 10:31:10', 200),
+(11, 11, '/api/11', '2023-06-15 10:41:00', '2023-06-15 10:41:10', 200),
+(12, 12, '/api/12', '2023-06-15 10:51:00', '2023-06-15 10:51:10', 200),
+(13, 13, '/api/13', '2023-06-15 11:01:00', '2023-06-15 11:01:10', 200),
+(14, 14, '/api/14', '2023-06-15 11:11:00', '2023-06-15 11:11:10', 200),
+(15, 15, '/api/15', '2023-06-15 11:21:00', '2023-06-15 11:21:10', 200);
