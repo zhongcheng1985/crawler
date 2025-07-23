@@ -1,0 +1,137 @@
+PS E:\crawler\code> python .\test\test1.py
+start => {}
+start <= {'session_id': '00044122-f655-4020-98a8-fe2828372860'}
+go => {"url": "https://radar.cloudflare.com/domains"}
+go <= {'url': 'https://radar.cloudflare.com/domains', 'title': 'Domain Rankings Worldwide | Cloudflare Radar'}
+view => {}
+[google.com]
+[googleapis.com] 
+[gstatic.com]    
+[apple.com]      
+[cloudflare.com] 
+[microsoft.com]  
+[facebook.com]   
+[googlevideo.com]
+[amazonaws.com]
+[whatsapp.net]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[fbcdn.net]
+[doubleclick.net]
+[amazon.com]
+[youtube.com]
+[instagram.com]
+[icloud.com]
+[googleusercontent.com]
+[akadns.net]
+[tiktokcdn.com]
+[live.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[ntp.org]
+[googlesyndication.com]
+[apple-dns.net]
+[bing.com]
+[netflix.com]
+[cloudfront.net]
+[gvt2.com]
+[tiktokv.com]
+[akamai.net]
+[cloudflare-dns.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[ytimg.com]
+[yahoo.com]
+[aaplimg.com]
+[cdninstagram.com]
+[gvt1.com]
+[akamaiedge.net]
+[ui.com]
+[office.com]
+[spotify.com]
+[samsung.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[dns.google]
+[one.one]
+[msn.com]
+[googleadservices.com]
+[app-analytics-services.com]
+[roblox.com]
+[snapchat.com]
+[google-analytics.com]
+[msftncsi.com]
+[wikipedia.org]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[amazon-adsystem.com]
+[trafficmanager.net]
+[googletagmanager.com]
+[azure.com]
+[applovin.com]
+[app-measurement.com]
+[criteo.com]
+[fastly.net]
+[unity3d.com]
+[3gppnetwork.org]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[steamserver.net]
+[appsflyersdk.com]
+[sentry.io]
+[ggpht.com]
+[linkedin.com]
+[a2z.com]
+[baidu.com]
+[rubiconproject.com]
+[office.net]
+[rbxcdn.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[microsoftonline.com]
+[windows.com]
+[skype.com]
+[windows.net]
+[tiktokcdn-us.com]
+[inmobi.com]
+[xiaomi.com]
+[windowsupdate.com]
+[taboola.com]
+[adnxs.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[whatsapp.com]
+[digicert.com]
+[doubleverify.com]
+[gmail.com]
+[sharepoint.com]
+[vungle.com]
+[android.com]
+[amazon.dev]
+[office365.com]
+[pubmatic.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[qq.com]
+[capcutapi.com]
+[cdn77.org]
+[cdn-apple.com]
+[mikrotik.com]
+[casalemedia.com]
+[msftconnecttest.com]
+[miui.com]
+[pangle.io]
+[zoom.us]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+close => {}
+close <= {'session_id': '00044122-f655-4020-98a8-fe2828372860'}

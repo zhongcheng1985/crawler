@@ -44,10 +44,6 @@ venv.bak/
 *.swo
 *~
 
-# Logs
-*.log
-logs/
-
 # Database
 *.db
 *.sqlite

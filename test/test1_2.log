@@ -1,0 +1,338 @@
+PS E:\crawler\code> python .\test\test1.py
+start => {}
+start <= {'session_id': 'd53b6022-651e-46f7-adfb-8eba38fd671b'}
+go => {"url": "https://radar.cloudflare.com/domains"}
+go <= {'url': 'https://radar.cloudflare.com/domains', 'title': 'Domain Rankings Worldwide | Cloudflare Radar'}
+view => {}
+[google.com]
+[googleapis.com]
+[apple.com]
+[gstatic.com]
+[cloudflare.com]
+[microsoft.com]
+[facebook.com]
+[googlevideo.com]
+[amazonaws.com]
+[whatsapp.net]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[fbcdn.net]
+[doubleclick.net]
+[youtube.com]
+[amazon.com]
+[instagram.com]
+[icloud.com]
+[googleusercontent.com]
+[akadns.net]
+[ntp.org]
+[tiktokcdn.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[live.com]
+[googlesyndication.com]
+[bing.com]
+[apple-dns.net]
+[cloudfront.net]
+[gvt2.com]
+[netflix.com]
+[tiktokv.com]
+[akamai.net]
+[cloudflare-dns.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[ytimg.com]
+[yahoo.com]
+[aaplimg.com]
+[cdninstagram.com]
+[akamaiedge.net]
+[office.com]
+[ui.com]
+[spotify.com]
+[samsung.com]
+[googleadservices.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[gvt1.com]
+[msn.com]
+[dns.google]
+[one.one]
+[app-analytics-services.com]
+[roblox.com]
+[google-analytics.com]
+[msftncsi.com]
+[snapchat.com]
+[amazon-adsystem.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[trafficmanager.net]
+[googletagmanager.com]
+[wikipedia.org]
+[azure.com]
+[app-measurement.com]
+[applovin.com]
+[fastly.net]
+[criteo.com]
+[steamserver.net]
+[unity3d.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[3gppnetwork.org]
+[appsflyersdk.com]
+[sentry.io]
+[linkedin.com]
+[ggpht.com]
+[a2z.com]
+[office.net]
+[rubiconproject.com]
+[microsoftonline.com]
+[baidu.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[rbxcdn.com]
+[windows.com]
+[windows.net]
+[skype.com]
+[tiktokcdn-us.com]
+[adnxs.com]
+[taboola.com]
+[windowsupdate.com]
+[digicert.com]
+[xiaomi.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[inmobi.com]
+[doubleverify.com]
+[gmail.com]
+[whatsapp.com]
+[sharepoint.com]
+[office365.com]
+[vungle.com]
+[android.com]
+[pubmatic.com]
+[cdn-apple.com]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+view => {}
+[casalemedia.com]
+[amazon.dev]
+[qq.com]
+[cdn77.org]
+[msftconnecttest.com]
+[capcutapi.com]
+[mikrotik.com]
+[miui.com]
+[fastly-edge.com]
+[adsrvr.org]
+click => {"element_id": "359_850_397_889"}
+click <= {'element_id': '359_850_397_889', 'text': 'Next page'}
+go => {"url": "google.com"}
+go <= {'url': 'google.com', 'title': 'Google'}
+go => {"url": "googleapis.com"}
+go <= {'url': 'googleapis.com', 'title': 'Error 404 (Not Found)!!1'}
+go => {"url": "apple.com"}
+go <= {'url': 'apple.com', 'title': 'Apple'}
+go => {"url": "gstatic.com"}
+go <= {'url': 'gstatic.com', 'title': 'Error 404 (Not Found)!!1'}
+go => {"url": "cloudflare.com"}
+go <= {'url': 'cloudflare.com', 'title': 'Connect, protect, and build everywhere | Cloudflare'}
+go => {"url": "microsoft.com"}
+go <= {'url': 'microsoft.com', 'title': 'Microsoft – AI, Cloud, Productivity, Computing, Gaming & Apps'}
+go => {"url": "facebook.com"}
+go <= {'url': 'facebook.com', 'title': 'Facebook - log in or sign up'}
+go => {"url": "googlevideo.com"}
+go <= {'url': 'googlevideo.com', 'title': 'Google Videos'}
+go => {"url": "amazonaws.com"}
+go <= {'url': 'amazonaws.com'}
+go => {"url": "whatsapp.net"}
+go <= {'url': 'whatsapp.net', 'title': 'WhatsApp | Secure and Reliable Free Private Messaging and Calling'}
+go => {"url": "fbcdn.net"}
+go <= {'url': 'fbcdn.net', 'title': 'Facebook - log in or sign up'}
+go => {"url": "doubleclick.net"}
+go <= {'url': 'doubleclick.net', 'title': 'Enterprise Advertising & Analytics Solutions - Google Marketing Platform'}
+go => {"url": "youtube.com"}
+go <= {'url': 'youtube.com', 'title': 'YouTube'}
+go => {"url": "amazon.com"}
+go <= {'url': 'amazon.com', 'title': 'Amazon.com. Spend less. Smile more.'}
+go => {"url": "instagram.com"}
+go <= {'url': 'instagram.com', 'title': 'Instagram'}
+go => {"url": "icloud.com"}
+go <= {'url': 'icloud.com', 'title': 'iCloud'}
+go => {"url": "googleusercontent.com"}
+go <= {'url': 'googleusercontent.com', 'title': 'Error 404 (Not Found)!!1'}
+go => {"url": "akadns.net"}
+go <= {'url': 'akadns.net', 'title': 'akadns.net'}
+go => {"url": "ntp.org"}
+go <= {'url': 'ntp.org', 'title': 'Welcome to the home of the Network Time Protocol (NTP) Project.'}
+go => {"url": "tiktokcdn.com"}
+go <= {'url': 'tiktokcdn.com', 'title': 'tiktokcdn.com'}
+go => {"url": "live.com"}
+go <= {'url': 'live.com', 'title': 'Microsoft Outlook (formerly Hotmail): Free email and calendar | Microsoft 365'}
+go => {"url": "googlesyndication.com"}
+go <= {'url': 'googlesyndication.com', 'title': 'Google'}
+go => {"url": "bing.com"}
+go <= {'url': 'bing.com', 'title': 'Search - Microsoft Bing'}
+go => {"url": "apple-dns.net"}
+go <= {'url': 'apple-dns.net', 'title': 'apple-dns.net'}
+go => {"url": "cloudfront.net"}
+go <= {'url': 'cloudfront.net', 'title': 'cloudfront.net'}
+go => {"url": "gvt2.com"}
+go <= {'url': 'gvt2.com', 'title': 'gvt2.com'}
+go => {"url": "netflix.com"}
+go <= {'url': 'netflix.com', 'title': 'Netflix - Watch TV Shows Online, Watch Movies Online'}
+go => {"url": "tiktokv.com"}
+go <= {'url': 'tiktokv.com', 'title': '404 Not Found'}
+go => {"url": "akamai.net"}
+go <= {'url': 'akamai.net', 'title': 'akamai.net'}
+go => {"url": "cloudflare-dns.com"}
+go <= {'url': 'cloudflare-dns.com', 'title': '1.1.1.1 — One of the Internet’s Fastest, Privacy-First DNS Resolver'}
+go => {"url": "ytimg.com"}
+go <= {'url': 'ytimg.com', 'title': 'ytimg.com'}
+go => {"url": "yahoo.com"}
+go <= {'url': 'yahoo.com', 'title': 'Yahoo | Mail, Weather, Search, Politics, News, Finance, Sports & Videos'}
+go => {"url": "aaplimg.com"}
+go <= {'url': 'aaplimg.com', 'title': 'aaplimg.com'}
+go => {"url": "cdninstagram.com"}
+go <= {'url': 'cdninstagram.com', 'title': 'cdninstagram.com'}
+go => {"url": "akamaiedge.net"}
+go <= {'url': 'akamaiedge.net', 'title': 'akamaiedge.net'}
+go => {"url": "office.com"}
+go <= {'url': 'office.com', 'title': 'Login | Microsoft 365 Copilot'}
+go => {"url": "ui.com"}
+go <= {'url': 'ui.com', 'title': 'Ubiquiti - Rethinking IT - Ubiquiti'}
+go => {"url": "spotify.com"}
+go <= {'url': 'spotify.com', 'title': 'Spotify - Web Player: Music for everyone'}
+go => {"url": "samsung.com"}
+go <= {'url': 'samsung.com', 'title': 'Galaxy Z Fold7 | AI Foldable Phone | Samsung US | Samsung US'}
+go => {"url": "googleadservices.com"}
+go <= {'url': 'googleadservices.com', 'title': 'Error 404 (Not Found)!!1'}
+go => {"url": "gvt1.com"}
+go <= {'url': 'gvt1.com', 'title': 'gvt1.com'}
+go => {"url": "msn.com"}
+go <= {'url': 'msn.com', 'title': 'MSN | Personalized News, Top Headlines, Live Updates and more'}
+go => {"url": "dns.google"}
+go <= {'url': 'dns.google'}
+go => {"url": "one.one"}
+go <= {'url': 'one.one', 'title': 'Domain Names | Web Hosting | Websites | Email | WordPress'}
+go => {"url": "app-analytics-services.com"}
+go <= {'url': 'app-analytics-services.com', 'title': 'Error 404 (Not Found)!!1'}
+go => {"url": "roblox.com"}
+go <= {'url': 'roblox.com', 'title': 'Roblox'}
+go => {"url": "google-analytics.com"}
+go <= {'url': 'google-analytics.com', 'title': 'Analytics Tools & Solutions for Your Business - Google Analytics'}
+go => {"url": "msftncsi.com"}
+go <= {'url': 'msftncsi.com', 'title': 'msftncsi.com'}
+go => {"url": "snapchat.com"}
+go <= {'url': 'snapchat.com', 'title': 'Less social media. More Snapchat.'}
+go => {"url": "amazon-adsystem.com"}
+go <= {'url': 'amazon-adsystem.com', 'title': ''}
+go => {"url": "trafficmanager.net"}
+go <= {'url': 'trafficmanager.net', 'title': 'trafficmanager.net'}
+go => {"url": "googletagmanager.com"}
+go <= {'url': 'googletagmanager.com', 'title': 'Error 404 (Not Found)!!1'}
+go => {"url": "wikipedia.org"}
+go <= {'url': 'wikipedia.org', 'title': 'Wikipedia'}
+go => {"url": "azure.com"}
+go <= {'url': 'azure.com', 'title': 'Cloud Computing Services | Microsoft Azure'}
+go => {"url": "app-measurement.com"}
+go <= {'url': 'app-measurement.com', 'title': 'Error 404 (Not Found)!!1'}
+go => {"url": "applovin.com"}
+go <= {'url': 'applovin.com', 'title': 'AppLovin | Connect to audiences in-app, on mobile devices, and across streaming TV'}
+go => {"url": "fastly.net"}
+go <= {'url': 'fastly.net', 'title': 'Powering the best of the internet | Fastly'}
+go => {"url": "criteo.com"}
+go <= {'url': 'criteo.com', 'title': 'The Commerce Media Platform for the Open Internet | Criteo'}
+go => {"url": "steamserver.net"}
+go <= {'url': 'steamserver.net', 'title': 'steamserver.net'}
+go => {"url": "unity3d.com"}
+go <= {'url': 'unity3d.com', 'title': 'Unity Real-Time Development Platform | 3D, 2D, VR & AR Engine'}
+go => {"url": "3gppnetwork.org"}
+go <= {'url': '3gppnetwork.org', 'title': '3gppnetwork.org'}
+go => {"url": "appsflyersdk.com"}
+go <= {'url': 'appsflyersdk.com', 'title': ''}
+go => {"url": "sentry.io"}
+go <= {'url': 'sentry.io', 'title': 'Application Performance Monitoring & Error Tracking Software | Sentry'}
+go => {"url": "linkedin.com"}
+go <= {'url': 'linkedin.com', 'title': ''}
+go => {"url": "ggpht.com"}
+go <= {'url': 'ggpht.com', 'title': 'ggpht.com'}
+go => {"url": "a2z.com"}
+go <= {'url': 'a2z.com', 'title': 'a2z.com'}
+go => {"url": "office.net"}
+go <= {'url': 'office.net', 'title': 'office.net'}
+go => {"url": "rubiconproject.com"}
+go <= {'url': 'rubiconproject.com', 'title': 'Magnite - The Largest Independent Sell-Side Advertising Company'}
+go => {"url": "microsoftonline.com"}
+go <= {'url': 'microsoftonline.com', 'title': 'microsoftonline.com'}
+go => {"url": "baidu.com"}
+go <= {'url': 'baidu.com'}
+go => {"url": "rbxcdn.com"}
+go <= {'url': 'rbxcdn.com', 'title': 'rbxcdn.com'}
+go => {"url": "windows.com"}
+go <= {'url': 'windows.com', 'title': 'Experience the Power of AI with Windows 11 OS, Computers, & Apps | Microsoft Windows'}
+go => {"url": "windows.net"}
+go <= {'url': 'windows.net', 'title': '.NET - Build modern apps and powerful cloud services'}
+go => {"url": "skype.com"}
+go <= {'url': 'skype.com', 'title': 'Free Online Meetings & Video Calls | Microsoft Teams'}
+go => {"url": "tiktokcdn-us.com"}
+go <= {'url': 'tiktokcdn-us.com', 'title': 'tiktokcdn-us.com'}
+go => {"url": "adnxs.com"}
+go <= {'url': 'adnxs.com', 'title': '404 Not Found'}
+go => {"url": "taboola.com"}
+go <= {'url': 'taboola.com', 'title': 'Boost your Digital Performance with Taboola Advertising Platform'}
+go => {"url": "windowsupdate.com"}
+go <= {'url': 'windowsupdate.com', 'title': 'windowsupdate.com'}
+go => {"url": "digicert.com"}
+go <= {'url': 'digicert.com', 'title': 'TLS/SSL Certificate Authority | Leader in Digital Trust | DigiCert'}
+go => {"url": "xiaomi.com"}
+go <= {'url': 'xiaomi.com', 'title': 'Xiaomi United States | Xiaomi Official Website'}
+go => {"url": "inmobi.com"}
+go <= {'url': 'inmobi.com', 'title': 'Redefining the mobile experience for consumers'}
+go => {"url": "doubleverify.com"}
+go <= {'url': 'doubleverify.com', 'title': 'Home - DoubleVerify'}
+go => {"url": "gmail.com"}
+go <= {'url': 'gmail.com', 'title': 'Gmail: Private and secure email at no cost | Google Workspace'}
+go => {"url": "whatsapp.com"}
+go <= {'url': 'whatsapp.com', 'title': 'WhatsApp | Secure and Reliable Free Private Messaging and Calling'}
+go => {"url": "sharepoint.com"}
+go <= {'url': 'sharepoint.com', 'title': 'Safely Collaborate and Share Content | Microsoft SharePoint'}
+go => {"url": "office365.com"}
+go <= {'url': 'office365.com', 'title': 'Microsoft 365 - Subscription for Productivity Apps | Microsoft 365'}
+go => {"url": "vungle.com"}
+go <= {'url': 'vungle.com', 'title': 'The Leading Growth Acceleration Platform for the Mobile Industry.'}
+go => {"url": "android.com"}
+go <= {'url': 'android.com', 'title': 'Android | Do More With Google on Android Phones & Devices'}
+go => {"url": "pubmatic.com"}
+go <= {'url': 'pubmatic.com', 'title': 'Programmatic Advertising Technology Company | PubMatic'}
+go => {"url": "cdn-apple.com"}
+go <= {'url': 'cdn-apple.com', 'title': 'cdn-apple.com'}
+go => {"url": "casalemedia.com"}
+go <= {'url': 'casalemedia.com', 'title': 'Index Exchange - Accelerating the Evolution of Ad Technology'}
+go => {"url": "amazon.dev"}
+go <= {'url': 'amazon.dev', 'title': 'amazon.dev'}
+go => {"url": "qq.com"}
+go <= {'url': 'qq.com', 'title': '腾讯网'}
+go => {"url": "cdn77.org"}
+go <= {'url': 'cdn77.org', 'title': 'cdn77.org'}
+go => {"url": "msftconnecttest.com"}
+go <= {'url': 'msftconnecttest.com', 'title': 'msftconnecttest.com'}
+go => {"url": "capcutapi.com"}
+go <= {'url': 'capcutapi.com', 'title': 'capcutapi.com'}
+go => {"url": "mikrotik.com"}
+go <= {'url': 'mikrotik.com', 'title': 'MikroTik Routers and Wireless'}
+go => {"url": "miui.com"}
+go <= {'url': 'miui.com'}
+go => {"url": "fastly-edge.com"}
+go <= {'url': 'fastly-edge.com', 'title': 'fastly-edge.com'}
+go => {"url": "adsrvr.org"}
+go <= {'url': 'adsrvr.org', 'title': 'Data Access Portal | The Trade Desk'}
+close => {}
+close <= {'session_id': '00044122-f655-4020-98a8-fe2828372860'}
+PS E:\crawler\code>
