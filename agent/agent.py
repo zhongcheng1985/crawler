@@ -106,7 +106,7 @@ async def fun_chrome_start(session_id: str, proxy: Optional[str]):
     sessionS_processO[session_id] = chrome_process
     websocket_cfm = False
     import asyncio
-    for _ in range(10):
+    for _ in range(25):
         await asyncio.sleep(0.200)
         if session_id in sessionS_websocketO:
             websocket_cfm = True
@@ -170,7 +170,7 @@ async def fun_session_go(session_id: str, url: str) -> Optional[str]:
     chrome_window.SendKeys(r'{Enter}')
     loaded_cfm = False
     import asyncio
-    for _ in range(10):
+    for _ in range(50):
         await asyncio.sleep(0.200)
         try:
             reload_button = chrome_window.ToolBarControl().GetChildren()[2].GetChildren()[2]
@@ -347,7 +347,7 @@ async def fun_session_destroy(session_id: str) -> str:
     if session_id in sessionS_tabN_loadedLS:
         del sessionS_tabN_loadedLS[session_id]
     import asyncio
-    await asyncio.sleep(0.500)
+    await asyncio.sleep(1.000)
     fun_clear_data(session_id)
     return session_id
 
