@@ -13,10 +13,15 @@ sessionS_websocketO: dict = {}        # session_id -> websocket object
 replyS_textS: dict = {}               # reply_id -> text
 sessionS_tabN_responseLS: dict = {}   # session_id -> tab_id -> [text]
 sessionS_tabN_loadedLS: dict = {}     # session_id -> tab_id -> [text]
+sessionS_proxy_credentials: dict = {} # session_id -> {host:port -> {username, password}}
+
 
 from typing import Optional
 from functools import wraps
 from fastapi import HTTPException
+from contextlib import asynccontextmanager
+import uiautomation as uia
+uia.SetGlobalSearchTimeout(1)
 
 def require_params(*param_names):
     """Decorator to check required parameters in kwargs or data body."""
@@ -79,15 +84,13 @@ def fun_clear_data(session_id: str) -> Optional[str]:
             return session_id
     return
 
-async def fun_chrome_start(session_id: str, proxy: Optional[str]):
+async def fun_chrome_start(session_id: str, proxy: Optional[str],extension:bool=True):
     """Start a Chrome browser instance for a given session."""
     user_path = fun_user_path(session_id)
     chrome_path = r'D:\Program Files\Chrome\chrome.exe'
     ext_path = r'E:\crawler\code\uia_extension'
     import subprocess
-    chrome_process = subprocess.Popen(
-        executable=chrome_path,
-        args=[
+    args=[
             r'--new-instance',
             r'--no-first-run',
             r'--no-default-browser-check',
@@ -95,13 +98,20 @@ async def fun_chrome_start(session_id: str, proxy: Optional[str]):
             r'--force-renderer-accessibility',
             r'--disable-background-networking',
             f'--user-data-dir={user_path}',
-            f'--load-extension={ext_path}',
-            f'--proxy-server={proxy}' if proxy else r'--no-proxy',
+            # f'--load-extension={ext_path}',
+            # f'--proxy-server={proxy}' if proxy else r'--no-proxy',
             # r'--remote-debugging-port=9222',
             # r'--auto-open-devtools-for-tabs',
             # url,
             # r'http://127.0.0.1:8000/empty.html'
         ]
+    if proxy:
+        args.append(f'--proxy-server={proxy}')
+    if extension:
+        args.append(f'--load-extension={ext_path}')
+    chrome_process = subprocess.Popen(
+        executable=chrome_path,
+        args=args
     )
     sessionS_processO[session_id] = chrome_process
     websocket_cfm = False
@@ -111,7 +121,7 @@ async def fun_chrome_start(session_id: str, proxy: Optional[str]):
         if session_id in sessionS_websocketO:
             websocket_cfm = True
             break
-    if websocket_cfm:
+    if not extension or websocket_cfm:
         return chrome_process
     else:
         chrome_process.terminate()
@@ -146,7 +156,6 @@ def fun_find_window(session_id: str):
     if not chrome_process:
         return
     chrome_window = None
-    import uiautomation as uia
     desktop_windows = uia.GetRootControl().GetChildren()
     for win in desktop_windows:
         if win.ProcessId == chrome_process.pid:
@@ -231,6 +240,11 @@ def fun_element_tree(element):
             r'name': element.Name,
             r'control_type': element.ControlTypeName,
         }
+        try:
+            tree[r'value'] = element.GetValuePattern().Value
+        except:
+            pass
+
         for child in element.GetChildren():
             e = fun_element_tree(child)
             if e:
@@ -239,6 +253,7 @@ def fun_element_tree(element):
                 tree.update({r'children': children})
         return tree
     except Exception as e:
+        logger.info("get element tree error",e)
         return
 
 def fun_element_search(element, id: str):
@@ -346,24 +361,62 @@ async def fun_session_destroy(session_id: str) -> str:
         del sessionS_tabN_responseLS[session_id]
     if session_id in sessionS_tabN_loadedLS:
         del sessionS_tabN_loadedLS[session_id]
+    if session_id in sessionS_proxy_credentials:
+        del sessionS_proxy_credentials[session_id]
     import asyncio
     await asyncio.sleep(1.000)
     fun_clear_data(session_id)
     return session_id
 
+async def fun_detect_auth():
+    logger.info("HTTP authentication detection started")
+    while True:
+        try:
+            # 遍历所有活跃的 Chrome 进程
+            for session_id, chrome_process in sessionS_processO.items():
+                try:
+                    # 查找对应的 Chrome 窗口
+                    chrome_window = fun_find_window(session_id)
+                    if not chrome_window:
+                        continue
+                    
+                    # 获取该session的代理凭据
+                    session_proxy_credentials = sessionS_proxy_credentials.get(session_id, {})
+                    
+                    # 使用通配符查找Name包含key的TextControl
+                    for key in session_proxy_credentials.keys():
+                        text_control=None
+                        text_control=chrome_window.TextControl(RegexName=f'.+.{key}.+')
+                        if text_control:
+                            text_control.SetFocus()
+                            text_control.SendKeys(session_proxy_credentials[key][r'username'])
+                            text_control.SendKeys(r'{Tab}')
+                            text_control.SendKeys(session_proxy_credentials[key][r'password'])
+                            text_control.SendKeys(r'{Enter}')
+                except Exception as e:
+                    continue
+        except Exception as e:
+            logger.debug(f"Error in auth detection loop: {e}")
+        import asyncio
+        await asyncio.sleep(1)
+
 # ==========  ========== web server ==========  ==========
-from fastapi import FastAPI, BackgroundTasks, Header
+from fastapi import FastAPI, Header
 from fastapi.responses import HTMLResponse, Response
 from typing import Dict, Any
 from functools import wraps
 from fastapi import HTTPException
-from fastapi.responses import JSONResponse
-from fastapi import status
-import threading
-import time
-from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # startup
+    import asyncio
+    asyncio.create_task(fun_detect_auth())
+    yield
+    # shutdown
+    print("Cleaning up...")
+
+app = FastAPI(lifespan=lifespan)
 
 # ----------  ---------- root ----------  ----------
 root_html = '''
@@ -426,12 +479,30 @@ async def api():
 
 @app.post(r'/api/start')
 async def api_start(response: Response, data: Optional[Dict[str, Any]], session_id: Optional[str] = Header(None, alias="X-Session-Id")):
-    proxy = data.get('proxy') if data else None
     if not session_id:
         session_id = fun_session_id()
+    
+    proxy = data.get('proxy') if data else None
+    # Parse proxy string and save credentials
+    if proxy:
+        from urllib.parse import urlparse
+        parsed = urlparse(proxy)
+        proxy = f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+        # 为当前session保存代理凭据
+        if session_id not in sessionS_proxy_credentials:
+            sessionS_proxy_credentials[session_id] = {}
+        sessionS_proxy_credentials[session_id][proxy] = {
+            'username': parsed.username,
+            'password': parsed.password
+        }
+    
     if session_id not in sessionS_processO:
-        chrome_process = await fun_chrome_start(session_id, proxy)
+        extension = bool(data.get('extension')) if data and 'extension' in data else True
+        chrome_process = await fun_chrome_start(session_id, proxy, extension)
         if chrome_process is None:
+            import asyncio
+            await asyncio.sleep(1.000)
+            fun_clear_data(session_id)
             session_id = None
     # 设置 header
     rsp = {r'session_id': session_id}
@@ -443,7 +514,7 @@ async def api_start(response: Response, data: Optional[Dict[str, Any]], session_
 @app.post(r'/api/go')
 @require_params('session_id', 'url')
 async def api_go(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
-    url = data.get('url')
+    url = str(data.get('url'))
     rsp = {r'url': url}
     title = await fun_session_go(session_id, url)
     if title is not None:
@@ -475,8 +546,8 @@ async def api_network(data: Dict[str, Any], session_id: str = Header(None, alias
 @app.post(r'/api/download')
 @require_params('request_id', 'tab_id')
 async def api_download(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
-    tab_id = data.get('tab_id')
-    request_id = data.get('request_id')
+    tab_id = int(data.get('tab_id'))
+    request_id = str(data.get('request_id'))
     data_rsp = await fun_session_download(session_id, tab_id, request_id)
     rsp = {r'tab_id': tab_id, r'request_id': request_id, r'data': data_rsp}
     return rsp
@@ -724,12 +795,27 @@ demo_html = '''
             <input id="b" />
             <input id="c" type="button" value="=>" onclick="document.getElementById('d').value=document.getElementById('a').value+document.getElementById('b').value" />
             <input id="d" value="" />
+            <br/>
+            <a href="demo2.html">demo2</a>
     </body>
 </html>
 '''
 @app.get('/demo.html')
 def demoHtml():
     return HTMLResponse(demo_html)
+
+demo2_html = '''
+<!DOCTYPE html>
+<html>
+	<head><title>demo2</title></head>
+    <body>
+        <a href="demo.html">demo</a>
+    </body>
+</html>
+'''
+@app.get('/demo2.html')
+def demo2Html():
+    return HTMLResponse(demo2_html)
 
 demo_js = '''
 function demo(){
@@ -751,20 +837,20 @@ body{
 def demoCss():
     return Response(content=demo_css, media_type="text/css")
 
-# ==========  ========== uvicorn ==========  ==========
-def uvicorn_run():
-    #
-    import uvicorn
-    uvicorn.run(
-        app,
-        host=r'127.0.0.1',  # 只监听本地
-        port=8020,
-        log_level=r'info',
-        access_log=True
-    )
+
 
 # ==========  ========== main ==========  ==========
 if __name__ == '__main__':
     logger.info(r'正在启动')
-    uvicorn_run()
+    #
+    import uvicorn
+    uvicorn.run(
+        app,
+        host=r'127.0.0.1',
+        port=8020,
+        log_level=r'info',
+        access_log=True
+    )
+    #
     logger.info(r'正在关闭')
+

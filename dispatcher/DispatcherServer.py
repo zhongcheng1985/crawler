@@ -176,6 +176,30 @@ async def _close_writer(writer: asyncio.StreamWriter) -> None:
     except Exception as e:
         logging.error(f"[SERVER][HTTP] Error closing writer: {e}")
 
+async def _read_until_delimiter(reader: asyncio.StreamReader, delimiter: str = '\r\n', timeout: float = 10.0, max_size: int = 8192) -> Optional[bytes]:
+    """Read data until a specific delimiter is found with timeout and maximum buffer size"""
+    try:
+        delimiter_bytes = delimiter.encode('utf-8')
+        buffer = b""
+        
+        # Use asyncio.wait_for to add timeout
+        while True:
+            # Read one byte at a time to find delimiter
+            char = await asyncio.wait_for(reader.read(1), timeout=timeout)
+            if not char:
+                return buffer if buffer else None  # Return buffer if we have data, None if empty
+                
+            # Add char to buffer
+            buffer += char
+            
+            # Check if buffer length reaches max_size or ends with delimiter
+            if len(buffer) >= max_size or buffer.endswith(delimiter_bytes):
+                return buffer
+                
+    except Exception as e:
+        logging.error(f"[SERVER][HTTP] Error reading data: {e}")
+        return buffer if buffer else None
+
 #==========  CLIENT CONNECTION HANDLER  ==========
 async def handle_client(clint_reader: asyncio.StreamReader,  client_writer: asyncio.StreamWriter) -> None:
     # Immediately read and check MESSAGE_DELIMITER
@@ -328,52 +352,86 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
     try:
         while True:  # Keep connection open to handle multiple requests
             # Read HTTP request and parse content-length
-            header_lines = []
+            request_lines = []
+            
+            # Read request line first and validate HTTP protocol start
             url = None
+            try:
+                line = await _read_until_delimiter(http_reader, delimiter='\r\n', timeout=10.0, max_size=8192)
+                if not line:
+                    logging.info(f"[SERVER][HTTP] HTTP client disconnected: {addr}")
+                    break
+                
+                # Simple parse: get method and url
+                parts = line.decode(errors='ignore').strip().split()
+                if len(parts) < 2:
+                    logging.warning(f"[SERVER][HTTP] Invalid request format from {addr}")
+                    await _close_writer(http_writer)
+                    break
+                
+                method, url = parts[0], parts[1]
+                
+                # Check if method is supported (only GET and POST allowed)
+                if method.upper() not in ['GET', 'POST']:
+                    logging.warning(f"[SERVER][HTTP] Unsupported HTTP method '{method}' from {addr}")
+                    await _close_writer(http_writer)
+                    break
+                
+                request_lines.append(line)
+                
+            except Exception as e:
+                logging.error(f"[SERVER][HTTP] Error parsing request from {addr}: {e}")
+                await _close_writer(http_writer)
+                break
+            
+            # Read headers
             x_session_id = None
             content_length = 0
             connection_close = None
             while True:
-                line = await http_reader.readline()
+                line = await _read_until_delimiter(http_reader, delimiter='\r\n', timeout=10.0, max_size=8192)
                 if not line:
+                    logging.warning(f"[SERVER][HTTP] Connection closed while reading headers from {addr}")
                     break
+                
                 decoded = line.decode(errors='ignore')
-                if not url and decoded.split():
-                    parts = decoded.split()
-                    if len(parts) >= 2 and parts[0].isalpha():
-                        url = parts[1]
+                
+                # Check for end of headers
+                if line == b'\r\n':
+                    if connection_close is None:
+                        request_lines.append(b'Connection: close\r\n')
+                    request_lines.append(line)
+                    break
+                
+                # Parse specific headers
                 if decoded.lower().startswith('x-session-id:'):
                     x_session_id = decoded.split(':', 1)[1].strip()
-                if decoded.lower().startswith('content-length:'):
+                elif decoded.lower().startswith('content-length:'):
                     try:
                         content_length = int(decoded.split(':', 1)[1].strip())
                     except ValueError:
                         pass
-                if decoded.lower().startswith('connection:'):
-                    # Record the original value (for possible logging or future use)
+                elif decoded.lower().startswith('connection:'):
                     connection_close = decoded[len('connection:'):].strip()
-                    # Always set to close
-                    header_lines.append(b'Connection: close\r\n')
-                    continue  # Skip appending the original line
-                if line == b'\r\n':
-                    if connection_close is None:
-                        header_lines.append(b'Connection: close\r\n')
-                    header_lines.append(line)
-                    break
-                header_lines.append(line)
+                    request_lines.append(b'Connection: close\r\n')
+                    continue
+                
+                request_lines.append(line)
             
-            # Check if connection is closed (no data read)
-            if not header_lines:
+            # Check if connection is closed
+            if not request_lines:
                 logging.info(f"[SERVER][HTTP] HTTP client disconnected: {addr}")
                 break
 
-            # Ensure Connection: close header is present and set
-            # (Remove the old Connection header logic here)
-            
             # Read body if present
             body_data = b""
             if content_length > 0:
-                body_data = await http_reader.readexactly(content_length)
+                try:
+                    body_data = await asyncio.wait_for(http_reader.readexactly(content_length), timeout=10.0)
+                except Exception as e:
+                    logging.error(f"[SERVER][HTTP] Error reading body from {addr}: {e}")
+                    await _close_writer(http_writer)
+                    return
 
             # If there is no x_session_id in the header, generate one using uuid4
             session=None
@@ -403,14 +461,14 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
 
                 x_session_id = str(uuid.uuid4())
                 # Find the position to insert X-Session-Id header
-                insert_pos = len(header_lines)  # Default: insert at the end
-                for i, l in enumerate(header_lines):
+                insert_pos = len(request_lines)  # Default: insert at the end
+                for i, l in enumerate(request_lines):
                     if l == b'\r\n':
                         insert_pos = i  # Insert before the empty line
                         break
                 
                 # Insert X-Session-Id header
-                header_lines.insert(insert_pos, f"X-Session-Id: {x_session_id}\r\n".encode())
+                request_lines.insert(insert_pos, f"X-Session-Id: {x_session_id}\r\n".encode())
                 async with sessions_lock:
                     session = SessionInfo(
                         uuid=x_session_id,
@@ -440,7 +498,7 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
 
             # Create binary HTTP request data
             request_buffer = b""
-            for line in header_lines:
+            for line in request_lines:
                 request_buffer += line
             if body_data:
                 request_buffer += body_data
@@ -690,7 +748,47 @@ async def main() -> None:
     
     async with http_server, client_server:
         logging.info(f"[SERVER][MAIN] Server started. HTTP(0.0.0.0:{HTTP_PORT}), Client(0.0.0.0:{CLIENT_PORT})")
-        await asyncio.gather(http_server.serve_forever(), client_server.serve_forever(),log_status_periodically())
+        try:
+            await asyncio.gather(http_server.serve_forever(), client_server.serve_forever(), log_status_periodically())
+        except KeyboardInterrupt:
+            logging.info("[SERVER][MAIN] Received shutdown signal, stopping servers...")
+            # Close all client connections
+            async with clients_lock:
+                for client_uuid, client_info in list(clients.items()):
+                    try:
+                        if not client_info.writer.is_closing():
+                            client_info.writer.close()
+                            await client_info.writer.wait_closed()
+                        logging.info(f"[SERVER][MAIN] Closed client connection: {client_uuid}")
+                    except Exception as e:
+                        logging.error(f"[SERVER][MAIN] Error closing client {client_uuid}: {e}")
+                clients.clear()
+            
+            # Close all pending HTTP requests
+            async with pending_requests_lock:
+                for msg_id, (http_writer, request_obj) in list(pending_requests.items()):
+                    try:
+                        if not http_writer.is_closing():
+                            http_writer.close()
+                            await http_writer.wait_closed()
+                        logging.info(f"[SERVER][MAIN] Closed pending HTTP request: {msg_id}")
+                    except Exception as e:
+                        logging.error(f"[SERVER][MAIN] Error closing HTTP request {msg_id}: {e}")
+                pending_requests.clear()
+                
+        except Exception as e:
+            logging.error(f"[SERVER][MAIN] Unexpected error: {e}")
+        finally:
+            logging.info("[SERVER][MAIN] Server shutdown complete.")
+
+def run_server():
+    """Run the server with proper signal handling"""
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("[SERVER] Server stopped by user (Ctrl+C)")
+    except Exception as e:
+        logging.error(f"[SERVER] Server error: {e}")
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    run_server()
