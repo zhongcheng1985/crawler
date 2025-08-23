@@ -41,6 +41,15 @@ if __name__ == '__main__':
         rsp = json.loads(response.read().decode('utf-8'))
         print("start <= "+str(rsp))
         session_id=rsp['session_id']
+
+    req = Request('http://104.238.234.115:8000/api/maximize', data=dataS.encode('utf-8'), method='POST')
+    req.add_header('Content-Type', 'application/json')
+    req.add_header('x-session-id', session_id)
+    with urlopen(req) as response:
+        print("maximize => "+str(dataS))
+        rsp = json.loads(response.read().decode('utf-8'))
+        print("maximize <= "+str(rsp))
+
     # ----------  ---------- 2. go ----------  ----------
     urls=[
         "http://www.google.com",

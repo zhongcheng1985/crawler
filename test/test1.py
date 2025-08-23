@@ -53,6 +53,15 @@ if __name__ == '__main__':
         rsp = json.loads(response.read().decode('utf-8'))
         print("start <= "+str(rsp))
         session_id=rsp['session_id']
+
+    req = Request('http://104.238.234.115:8000/api/maximize', data=dataS.encode('utf-8'), method='POST')
+    req.add_header('Content-Type', 'application/json')
+    req.add_header('x-session-id', session_id)
+    with urlopen(req) as response:
+        print("maximize => "+str(dataS))
+        rsp = json.loads(response.read().decode('utf-8'))
+        print("maximize <= "+str(rsp))
+
     # ----------  ---------- 2. go ----------  ----------
     tip("2. go")
     data = {"url":"https://radar.cloudflare.com/domains"}
@@ -78,15 +87,15 @@ if __name__ == '__main__':
             with urlopen(req) as response:
                 print("view => "+str(dataS))
                 rsp = json.loads(response.read().decode('utf-8'))
+                print("view <= "+str(rsp))
                 #
-                table = find_element_by_id(rsp.get("elements"),"309_360_1057_819")
+                table = find_element_by_id(rsp.get("elements"),"328_360_1067_819")#TableControl
                 for c in table.get("children")[0].get("children")[1:]:
                     print("["+c.get("children")[1].get("name")+"]")
 
-                #print("view <= "+str(rsp))
             #
             tip("4. click")
-            data = {"element_id":"359_850_397_889"}
+            data = {"element_id":"378_850_417_889"}#ButtonControl
             dataS = json.dumps(data)
             req = Request('http://104.238.234.115:8000/api/click', data=dataS.encode('utf-8'), method='POST')
             req.add_header('Content-Type', 'application/json')

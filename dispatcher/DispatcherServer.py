@@ -448,9 +448,9 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
                     
                     # Find available client that doesn't exceed max_browser_count
                     min_session_count = float('inf')
-                    for client_uuid, c in clients.items():
+                    for c in clients.values():
                         if c.disconnect_time is None:
-                            current_count = client_session_counts.get(client_uuid, 0)
+                            current_count = client_session_counts.get(c.uuid, 0)
                             if current_count < c.max_browser_count and current_count < min_session_count:
                                 min_session_count = current_count
                                 client = c
@@ -472,7 +472,7 @@ async def handle_http(http_reader: asyncio.StreamReader,  http_writer: asyncio.S
                 async with sessions_lock:
                     session = SessionInfo(
                         uuid=x_session_id,
-                        client_uuid=client_uuid,  # Use the UUID from the clients dict key
+                        client_uuid=client.uuid,  # Use the UUID from the clients dict key
                         init_time=datetime.datetime.now(),
                     )
                     sessions[x_session_id] = session

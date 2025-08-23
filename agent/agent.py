@@ -1,3 +1,6 @@
+#
+# pip install fastapi uuvicorn[standard] uiautomation psutil
+#
 import logging
 logging.basicConfig(
     level=logging.INFO,
@@ -8,13 +11,18 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 # ===== Global session and state storage =====
+CONST_USER_BASE=r"H:"
+CONST_CHROME_BASE=r'D:\Program Files\Chrome\chrome.exe'
+CONST_EXTENSION_BASE=r'E:\crawler\code\uia_extension'
+
 sessionS_processO: dict = {}          # session_id -> process object
 sessionS_websocketO: dict = {}        # session_id -> websocket object
 replyS_textS: dict = {}               # reply_id -> text
 sessionS_tabN_responseLS: dict = {}   # session_id -> tab_id -> [text]
 sessionS_tabN_loadedLS: dict = {}     # session_id -> tab_id -> [text]
 sessionS_proxy_credentials: dict = {} # session_id -> {host:port -> {username, password}}
-
+import asyncio
+clients_lock = asyncio.Lock()
 
 from typing import Optional
 from functools import wraps
@@ -68,7 +76,7 @@ def fun_message_id() -> str:
 
 def fun_user_path(session_id: str) -> str:
     """Get the user data directory path for a session."""
-    user_base = r'H:'
+    user_base = CONST_USER_BASE
     import os
     user_path = os.path.join(user_base, f'chrome_{session_id}')
     return user_path
@@ -87,14 +95,14 @@ def fun_clear_data(session_id: str) -> Optional[str]:
 async def fun_chrome_start(session_id: str, proxy: Optional[str],extension:bool=True):
     """Start a Chrome browser instance for a given session."""
     user_path = fun_user_path(session_id)
-    chrome_path = r'D:\Program Files\Chrome\chrome.exe'
-    ext_path = r'E:\crawler\code\uia_extension'
+    chrome_path = CONST_CHROME_BASE
+    ext_path = CONST_EXTENSION_BASE
     import subprocess
     args=[
             r'--new-instance',
             r'--no-first-run',
             r'--no-default-browser-check',
-            r'--start-maximized',
+            # r'--start-maximized',
             r'--force-renderer-accessibility',
             r'--disable-background-networking',
             f'--user-data-dir={user_path}',
@@ -103,7 +111,7 @@ async def fun_chrome_start(session_id: str, proxy: Optional[str],extension:bool=
             # r'--remote-debugging-port=9222',
             # r'--auto-open-devtools-for-tabs',
             # url,
-            # r'http://127.0.0.1:8000/empty.html'
+            # r'http://127.0.0.1:8020/blank.html'
         ]
     if proxy:
         args.append(f'--proxy-server={proxy}')
@@ -162,9 +170,9 @@ def fun_find_window(session_id: str):
             chrome_window = win
     return chrome_window
 
-async def fun_session_go(session_id: str, url: str) -> Optional[str]:
+async def fun_session_maximize(session_id: str) -> Optional[str]:
     """Navigate to a URL in the Chrome browser for a given session."""
-    if not session_id or not url:
+    if not session_id:
         return
     chrome_window = fun_find_window(session_id)
     if not chrome_window:
@@ -174,6 +182,19 @@ async def fun_session_go(session_id: str, url: str) -> Optional[str]:
         chrome_window.Maximize()  # type: ignore
     except AttributeError:
         logger.warning("chrome_window has no Maximize method")
+    title = None
+    chrome_document = chrome_window.DocumentControl()
+    title = chrome_document.Name
+    return title
+
+async def fun_session_go(session_id: str, url: str) -> Optional[str]:
+    """Navigate to a URL in the Chrome browser for a given session."""
+    if not session_id or not url:
+        return
+    chrome_window = fun_find_window(session_id)
+    if not chrome_window:
+        return
+    chrome_window.SetFocus()
     chrome_window.SendKeys(r'{Ctrl}L')
     chrome_window.SendKeys(url)
     chrome_window.SendKeys(r'{Enter}')
@@ -278,6 +299,7 @@ def fun_uia_data(session_id: str):
     chrome_window = fun_find_window(session_id)
     if not chrome_window:
         return
+    chrome_window.SetFocus()
     chrome_document = chrome_window.DocumentControl()
     tree = fun_element_tree(chrome_document)
     return tree
@@ -312,10 +334,6 @@ async def fun_session_click(session_id: str, element_id: str) -> Optional[str]:
     text = None
     try:
         chrome_window.SetFocus()
-        try:
-            chrome_window.Maximize()  # type: ignore
-        except AttributeError:
-            logger.warning("chrome_window has no Maximize method")
         chrome_document = chrome_window.DocumentControl()
         element = fun_element_search(chrome_document, element_id)
         if element:
@@ -335,10 +353,6 @@ async def fun_session_input(session_id: str, element_id: str, keys: str) -> Opti
     text = None
     try:
         chrome_window.SetFocus()
-        try:
-            chrome_window.Maximize()  # type: ignore
-        except AttributeError:
-            logger.warning("chrome_window has no Maximize method")
         chrome_document = chrome_window.DocumentControl()
         element = fun_element_search(chrome_document, element_id)
         if element:
@@ -479,6 +493,7 @@ async def api():
 
 @app.post(r'/api/start')
 async def api_start(response: Response, data: Optional[Dict[str, Any]], session_id: Optional[str] = Header(None, alias="X-Session-Id")):
+  async with clients_lock:
     if not session_id:
         session_id = fun_session_id()
     
@@ -509,11 +524,13 @@ async def api_start(response: Response, data: Optional[Dict[str, Any]], session_
     if session_id:
         response.headers['X-Session-Id'] = session_id
         rsp[r'session_id'] = session_id
+        await fun_session_go(session_id, "http://127.0.0.1:8020/blank.html")
     return rsp
 
 @app.post(r'/api/go')
 @require_params('session_id', 'url')
 async def api_go(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
+  async with clients_lock:
     url = str(data.get('url'))
     rsp = {r'url': url}
     title = await fun_session_go(session_id, url)
@@ -521,9 +538,20 @@ async def api_go(data: Dict[str, Any], session_id: str = Header(None, alias="X-S
         rsp[r'title'] = title
     return rsp
 
+@app.post(r'/api/maximize')
+@require_params('session_id')
+async def api_maximize(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
+  async with clients_lock:
+    rsp = {}
+    title = await fun_session_maximize(session_id)
+    if title is not None:
+        rsp[r'title'] = title
+    return rsp
+
 @app.post(r'/api/view')
 @require_params('session_id')
 async def api_view(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
+  async with clients_lock:
     rsp = {}
     rsp[r'elements'] = fun_uia_data(session_id)
     return rsp
@@ -555,6 +583,7 @@ async def api_download(data: Dict[str, Any], session_id: str = Header(None, alia
 @app.post(r'/api/click')
 @require_params('session_id', 'element_id')
 async def api_click(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
+  async with clients_lock:
     element_id = data.get('element_id')
     text = await fun_session_click(session_id, element_id)
     rsp = {r'element_id': element_id, r'text': text}
@@ -563,6 +592,7 @@ async def api_click(data: Dict[str, Any], session_id: str = Header(None, alias="
 @app.post(r'/api/input')
 @require_params('session_id', 'element_id', 'keys')
 async def api_input(data: Dict[str, Any], session_id: str = Header(None, alias="X-Session-Id")):
+  async with clients_lock:
     element_id = data.get('element_id')
     keys = data.get('keys')
     keys_rsp = await fun_session_input(session_id, element_id, keys)
@@ -734,16 +764,7 @@ async def ws_ext(websocket: WebSocket):
                 sessionS_tabN_loadedLS.update({session_id: tabN_loadedLS})
                 logger.info(f'session_tab_loaded cleared:{session_id} {tab_id}')
             #
-            if r'Event.Network.responseReceived' == data.get(r'command', None):
-                tab_id = data[r'source'][r'tabId']
-                tabN_responseLS = sessionS_tabN_responseLS.get(session_id, {})
-                responseLS = tabN_responseLS.get(tab_id, [])
-                responseLS.append(text)
-                tabN_responseLS.update({tab_id: responseLS})
-                sessionS_tabN_responseLS.update({session_id: tabN_responseLS})
-                logger.info(f'session_tab_response append:{session_id} {tab_id}')
-            #
-            if r'Event.webRequest.onResponseStarted' == data.get(r'command', None):
+            if r'Event.webRequest.onCompleted' == data.get(r'command', None):
                 tab_id = data[r'params'][r'tabId']
                 tabN_responseLS = sessionS_tabN_responseLS.get(session_id, {})
                 responseLS = tabN_responseLS.get(tab_id, [])
@@ -754,6 +775,35 @@ async def ws_ext(websocket: WebSocket):
             #
             if r'Event.webNavigation.onCompleted' == data.get(r'command', None):
                 tab_id = data[r'params'][r'tabId']
+                tabN_loadedLS = sessionS_tabN_loadedLS.get(session_id, {})
+                loadedLS = tabN_loadedLS.get(tab_id, [])
+                loadedLS.append(text)
+                tabN_loadedLS.update({tab_id: loadedLS})
+                sessionS_tabN_loadedLS.update({session_id: tabN_loadedLS})
+                logger.info(f'session_tab_loaded append:{session_id} {tab_id}')
+            #
+            if r'Event.Page.frameStartedLoading' == data.get(r'command', None):
+                tab_id = data[r'source'][r'tabId']
+                #
+                tabN_responseLS = sessionS_tabN_responseLS.get(session_id, {})
+                tabN_responseLS.update({tab_id: []})
+                sessionS_tabN_responseLS.update({session_id: tabN_responseLS})
+                logger.info(f'session_tab_response cleared:{session_id} {tab_id}')
+                #
+                tabN_loadedLS = sessionS_tabN_loadedLS.get(session_id, {})
+                tabN_loadedLS.update({tab_id: []})
+                sessionS_tabN_loadedLS.update({session_id: tabN_loadedLS})
+                logger.info(f'session_tab_loaded cleared:{session_id} {tab_id}')
+            if r'Event.Network.responseReceived' == data.get(r'command', None):
+                tab_id = data[r'source'][r'tabId']
+                tabN_responseLS = sessionS_tabN_responseLS.get(session_id, {})
+                responseLS = tabN_responseLS.get(tab_id, [])
+                responseLS.append(text)
+                tabN_responseLS.update({tab_id: responseLS})
+                sessionS_tabN_responseLS.update({session_id: tabN_responseLS})
+                logger.info(f'session_tab_response append:{session_id} {tab_id}')
+            if r'Event.Page.frameStoppedLoading' == data.get(r'command', None):
+                tab_id = data[r'source'][r'tabId']
                 tabN_loadedLS = sessionS_tabN_loadedLS.get(session_id, {})
                 loadedLS = tabN_loadedLS.get(tab_id, [])
                 loadedLS.append(text)
@@ -772,16 +822,16 @@ async def ws_ext(websocket: WebSocket):
     #
     return
 # ----------  ---------- empty ----------  ----------
-empty_html = '''
+blank_html = '''
 <!DOCTYPE html>
 <html>
     <body>
     </body>
 </html>
 '''
-@app.get('/empty.html')
-def emptyHtml():
-    return HTMLResponse(empty_html)
+@app.get('/blank.html')
+def blankHtml():
+    return HTMLResponse(blank_html)
 
 # ----------  ---------- demo ----------  ----------
 demo_html = '''

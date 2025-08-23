@@ -120,41 +120,19 @@ connectWebSocket();
 // ----------
 function handleDebuggerEvent(source, method, params) {
   // 用户输入URL、点击链接或调用 location.href 跳转
-  // if ("Page.frameNavigated" === method) {
-  //   const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.Page.frameNavigated", "source": source, "params": params };
-  //   webSocket.send(JSON.stringify(rsp));
-  //   console.log("=>", rsp);
-  // }
+  if ("Page.frameStartedLoading" === method) {
+    const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.Page.frameStartedLoading", "source": source, "params": params };
+    webSocket.send(JSON.stringify(rsp));
+    console.log("=>", rsp);
+  }
   // 请求发起
   // if ("Network.requestWillBeSent" === method) {
-    // interface RequestWillBeSentParams {
-    //   requestId: string;
-    //   loaderId: string;
-    //   documentURL: string;
-    //   request: Request;
-    //   timestamp: number;
-    //   wallTime?: number;
-    //   initiator: Initiator;
-    //   redirectResponse?: Response;
-    //   type?: ResourceType;
-    //   frameId?: string;
-    //   hasUserGesture?: boolean;
-    // }
   //   const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.Network.requestWillBeSent", "source": source, "params": params };
   //   webSocket.send(JSON.stringify(rsp));
   //   console.log("=>", rsp);
   // }
   // 浏览器接收到 HTTP 响应头（此时响应体可能还未开始传输）
   if ("Network.responseReceived" === method) {
-    // interface ResponseReceivedParams {
-    //   requestId: string;
-    //   loaderId?: string;
-    //   timestamp: number;
-    //   type: ResourceType;
-    //   response: Response;
-    //   frameId?: string;
-    //   hasExtraInfo?: boolean;
-    // }
     const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.Network.responseReceived", "source": source, "params": params };
     webSocket.send(JSON.stringify(rsp));
     console.log("=>", rsp);
@@ -162,12 +140,6 @@ function handleDebuggerEvent(source, method, params) {
   // ********** 浏览器边下载边解析 HTML,遇到 <script>, <link>, <img> 等标签时立即发起子资源请求 **********
   // 响应体完全加载完成（包括所有数据包接收完毕）
   // if ("Network.loadingFinished" === method) {
-    // interface LoadingFinishedParams {
-    //   requestId: string;
-    //   timestamp: number;
-    //   encodedDataLength: number;  // 压缩后数据大小
-    //   shouldReportCorbBlocking?: boolean;
-    // }
   //   const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.Network.loadingFinished", "source": source, "params": params };
   //   webSocket.send(JSON.stringify(rsp));
   //   console.log("=>", rsp);
@@ -179,8 +151,8 @@ function handleDebuggerEvent(source, method, params) {
   //   console.log("=>", rsp);
   // }
   // 页面完全加载。所有同步资源必须加载完成，异步资源（如defer脚本、懒加载图片）可能仍在加载
-  if ("Page.loadEventFired" === method) {
-    const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.Page.loadEventFired", "source": source, "params": params };
+  if ("Page.frameStoppedLoading" === method) {
+    const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.Page.frameStoppedLoading", "source": source, "params": params };
     webSocket.send(JSON.stringify(rsp));
     console.log("=>", rsp);
   }
@@ -193,7 +165,6 @@ async function attachDebugger(tabId) {
     console.log(`已附加调试器到标签页: ${tabId}`);
     // 启用网络请求监听
     await chrome.debugger.sendCommand({ tabId: tabId }, "Network.enable");
-    // await chrome.debugger.sendCommand({ tabId: tabId }, "Network.setCacheDisabled",{ cacheDisabled: true });
     await chrome.debugger.sendCommand({ tabId: tabId }, "Page.enable");
     // 监听调试器事件（如网络请求）
     await chrome.debugger.onEvent.addListener(handleDebuggerEvent);
@@ -277,18 +248,18 @@ chrome.webNavigation.onCompleted.addListener((details) => {
 //     console.log("=>", rsp);
 //   },{ urls: ["<all_urls>"] }
 // );
-chrome.webRequest.onResponseStarted.addListener((details) => {
-    const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.webRequest.onResponseStarted", "params": details };
+// chrome.webRequest.onResponseStarted.addListener((details) => {
+//     const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.webRequest.onResponseStarted", "params": details };
+//     webSocket.send(JSON.stringify(rsp));
+//     console.log("=>", rsp);
+//   },{ urls: ["<all_urls>"] },["responseHeaders"]
+// );
+chrome.webRequest.onCompleted.addListener((details) => {
+    const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.webRequest.onCompleted", "params": details };
     webSocket.send(JSON.stringify(rsp));
     console.log("=>", rsp);
   },{ urls: ["<all_urls>"] },["responseHeaders"]
 );
-// chrome.webRequest.onCompleted.addListener((details) => {
-//     const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.webRequest.onCompleted", "params": details };
-//     webSocket.send(JSON.stringify(rsp));
-//     console.log("=>", rsp);
-//   },{ urls: ["<all_urls>"] }
-// );
 // chrome.webRequest.onErrorOccurred.addListener((details) => {
 //     const rsp = { "id": generateId(), "time":new Date().toLocaleString(), "command": "Event.webRequest.onErrorOccurred", "params": details };
 //     webSocket.send(JSON.stringify(rsp));
