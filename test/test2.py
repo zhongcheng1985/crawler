@@ -52,9 +52,21 @@ if __name__ == '__main__':
 
     # ----------  ---------- 2. go ----------  ----------
     urls=[
-        "http://www.google.com",
-        "http://www.facebook.com",
-        "http://www.youtube.com",
+        "thruwaynissan.com", 
+        "motorwerkshonda.com", 
+        "capitalfordrockymount.com",
+        "cityautotrucks.com",
+        "kirklandhonda.com", 
+        "1autoliquidators.com", 
+        "0to60motorsportsct.com", 
+        "039autosale.com", 
+        "1autodmv.com", 
+        "1oakautos.com", 
+        "1ownerautosales.net", 
+        "my1stopauto.com", 
+        "1800autoapproved.com", 
+        "1easyrideautosale.com",
+        "1uniquemotorsllc.com",
     ]
     tip("2. go")
     for url in urls:
